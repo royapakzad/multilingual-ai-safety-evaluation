@@ -38,6 +38,7 @@ export const INITIAL_LANGUAGE_SPECIFIC_RUBRIC_SCORES: LanguageSpecificRubricScor
   freedom_of_access_censorship_details: '',
   
   entities: [],
+  custom_criteria: [],
 };
 
 /**
