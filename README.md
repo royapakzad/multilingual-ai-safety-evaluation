@@ -140,6 +140,9 @@ This application requires configuration for both API keys and administrator cred
     // For Mistral
     export const MISTRAL_API_KEY = "YOUR_MISTRAL_API_KEY_HERE";
 
+   // For OpenRouter
+     export const OPENROUTER_API_KEY= "YOUR_OPENROUTER_API_KEY_HERE";
+
     // --- Admin Credentials ---
     // For local development, you can set the admin user here.
     // In production, these values are ignored; use environment variables instead.
