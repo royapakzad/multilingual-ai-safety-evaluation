@@ -3,7 +3,7 @@
 import { GoogleGenAI, GenerateContentResponse, FinishReason, Type } from "@google/genai";
 import OpenAI from "openai";
 import { Mistral } from "@mistralai/mistralai";
-import { LLMModelType, ReasoningEvaluationRecord, LlmEvaluation, LlmRubricScores } from '../types';
+import { LLMModelType, ModelDefinition, ReasoningEvaluationRecord, LlmEvaluation, LlmRubricScores } from '../types';
 import { AVAILABLE_MODELS, RUBRIC_DIMENSIONS, DISPARITY_CRITERIA, HARM_SCALE, LLM_EVALUATOR_SYSTEM_INSTRUCTION } from '../constants';
 import * as config from '../env.js'; // Import API keys from env.js
 
@@ -11,6 +11,7 @@ import * as config from '../env.js'; // Import API keys from env.js
 let geminiAi: GoogleGenAI | null = null;
 let openaiAi: OpenAI | null = null;
 let mistralAi: Mistral | null = null;
+let openrouterAi: OpenAI | null = null;
 
 /**
  * Initializes the Google Gemini client if not already initialized.
@@ -55,16 +56,32 @@ const initializeMistral = () => {
   mistralAi = new Mistral({ apiKey });
 };
 
+const initializeOpenRouter = () => {
+  if (openrouterAi) return;
+  const apiKey = (config as any).OPENROUTER_API_KEY;
+  if (!apiKey || apiKey === "YOUR_OPENROUTER_API_KEY_HERE") {
+    throw new Error("OPENROUTER_API_KEY_MISSING_OR_PLACEHOLDER");
+  }
+  openrouterAi = new OpenAI({
+    apiKey,
+    baseURL: "https://openrouter.ai/api/v1",
+    dangerouslyAllowBrowser: true,
+  });
+};
+
 /**
- * Gets the provider ('gemini', 'openai', 'mistral') for a given model ID.
- * @param modelId The full model ID (e.g., 'gemini/gemini-2.5-flash').
- * @returns The provider name.
- * @throws {Error} if the model ID is not found.
+ * Gets the provider for a model ID based on its prefix.
+ * OpenRouter models: 'openrouter/...'
+ * Static models: 'gemini/...', 'openai/...', 'mistral/...'
  */
-const getModelProvider = (modelId: LLMModelType) => {
+const getModelProvider = (modelId: string) => {
+    if (modelId.startsWith('openrouter/')) return 'openrouter' as const;
+    if (modelId.startsWith('gemini/')) return 'gemini' as const;
+    if (modelId.startsWith('openai/')) return 'openai' as const;
+    if (modelId.startsWith('mistral/')) return 'mistral' as const;
     const modelDefinition = AVAILABLE_MODELS.find(m => m.id === modelId);
     if (!modelDefinition) {
-        throw new Error(`Model ID ${modelId} not found in AVAILABLE_MODELS.`);
+        throw new Error(`Cannot determine provider for model ID: ${modelId}`);
     }
     return modelDefinition.provider;
 };
@@ -76,14 +93,18 @@ const getModelProvider = (modelId: LLMModelType) => {
  * @param providerConfig Optional provider-specific configuration.
  * @returns The LLM's text response as a string.
  */
-export const generateLlmResponse = async (prompt: string, modelId: LLMModelType, providerConfig?: any): Promise<string> => {
+export const generateLlmResponse = async (prompt: string, modelId: string, providerConfig?: any): Promise<string> => {
   if (!prompt.trim()) {
     console.warn("Empty prompt provided to generateLlmResponse.");
-    return ""; 
+    return "";
   }
 
   const provider = getModelProvider(modelId);
-  const actualModelId = modelId.substring(modelId.indexOf('/') + 1);
+  // For openrouter models: 'openrouter/anthropic/claude-3-opus' → 'anthropic/claude-3-opus'
+  // For static models: 'openai/gpt-4o' → 'gpt-4o'
+  const actualModelId = provider === 'openrouter'
+    ? modelId.substring('openrouter/'.length)
+    : modelId.substring(modelId.indexOf('/') + 1);
 
   try {
     if (provider === 'gemini') {
@@ -133,7 +154,21 @@ export const generateLlmResponse = async (prompt: string, modelId: LLMModelType,
     resp.choices[0]?.message?.content?.trim() ||
     `No text received (finish reason: ${resp.choices[0]?.finish_reason ?? "N/A"}).`
   );
-} else {
+} else if (provider === 'openrouter') {
+      initializeOpenRouter();
+      if (!openrouterAi) throw new Error("OpenRouter client not initialized.");
+
+      const messages: any[] = [];
+      if (providerConfig?.systemInstruction) {
+        messages.push({ role: "system", content: providerConfig.systemInstruction });
+      }
+      messages.push({ role: "user", content: prompt });
+
+      const response = await openrouterAi.chat.completions.create({ model: actualModelId, messages });
+      return response.choices[0]?.message?.content?.trim() ||
+        `No text content received from OpenRouter. Finish reason: ${response.choices[0]?.finish_reason || 'N/A'}.`;
+
+    } else {
       throw new Error(`Unsupported LLM provider: ${provider}`);
     }
   } catch (error) {
@@ -141,7 +176,8 @@ export const generateLlmResponse = async (prompt: string, modelId: LLMModelType,
     let errorMessage = `Failed to get response from ${provider}.`;
     if (error instanceof Error) {
         if (error.message.includes("_API_KEY_MISSING_OR_PLACEHOLDER")) {
-            errorMessage = `API key for ${provider} is missing or is a placeholder in env.js.`;
+            const providerLabel = provider === 'openrouter' ? 'OpenRouter' : provider;
+            errorMessage = `API key for ${providerLabel} is missing or is a placeholder in env.js.`;
         } else if ((error as any).status === 401 || error.message?.toLowerCase().includes('api key')) {
             errorMessage = `API key for ${provider} is not valid. Please check it. Original error: ${error.message}`;
         } else if ((error as any).status === 429) {
@@ -153,6 +189,33 @@ export const generateLlmResponse = async (prompt: string, modelId: LLMModelType,
         errorMessage = `An unknown error occurred with ${provider}: ${String(error)}`;
     }
     throw new Error(errorMessage);
+  }
+};
+
+/**
+ * Fetches the list of all models available on OpenRouter.
+ * Returns an array of ModelDefinition with provider='openrouter' and
+ * id prefixed with 'openrouter/' so the router in generateLlmResponse can identify them.
+ */
+export const fetchOpenRouterModels = async (): Promise<ModelDefinition[]> => {
+  const apiKey = (config as any).OPENROUTER_API_KEY;
+  if (!apiKey || apiKey === "YOUR_OPENROUTER_API_KEY_HERE" || apiKey === "") {
+    return [];
+  }
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!response.ok) throw new Error(`OpenRouter models fetch failed: ${response.status}`);
+    const data = await response.json();
+    return (data.data ?? []).map((m: any) => ({
+      id: `openrouter/${m.id}`,
+      name: m.name || m.id,
+      provider: 'openrouter' as const,
+    }));
+  } catch (err) {
+    console.error("Failed to fetch OpenRouter models:", err);
+    return [];
   }
 };
 
