@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { LanguageSpecificRubricScores, HarmDisparityMetrics, RubricDimension, VerifiableEntity } from '../types';
+import { LanguageSpecificRubricScores, HarmDisparityMetrics, RubricDimension, VerifiableEntity, CustomCriterionScore } from '../types';
 import { 
     HARM_SCALE,
     NON_DISCRIMINATION_OPTIONS,
@@ -224,8 +224,9 @@ interface EvaluationFormProps {
 const HarmAssessmentSection: React.FC<{
   scores: LanguageSpecificRubricScores;
   onScoreChange: (key: keyof LanguageSpecificRubricScores, value: any) => void;
+  onCustomCriterionValueChange: (id: string, value: number | string) => void;
   sectionIdPrefix: string;
-}> = ({ scores, onScoreChange, sectionIdPrefix }) => (
+}> = ({ scores, onScoreChange, onCustomCriterionValueChange, sectionIdPrefix }) => (
   <div className="space-y-8">
     {RUBRIC_DIMENSIONS.map(dim => {
       const inputId = `${sectionIdPrefix}-${dim.key}`;
@@ -309,6 +310,62 @@ const HarmAssessmentSection: React.FC<{
         </div>
       );
     })}
+
+    {scores.custom_criteria.map(criterion => {
+      const inputId = `${sectionIdPrefix}-custom-${criterion.id}`;
+      return (
+        <div key={inputId} className="py-4 border-b border-border/70 last:border-b-0 last:pb-0">
+          <fieldset>
+            <div className="flex justify-between items-start mb-2.5">
+              <legend id={`${inputId}-label`} className="block text-md font-medium text-card-foreground">
+                {criterion.label}
+                <span className="ml-2 text-xs font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Custom</span>
+              </legend>
+              {criterion.type === 'slider' && (
+                <span className={`text-sm font-semibold px-3 py-1 border rounded-full min-w-[3rem] text-center ${getHarmBadgeClass(criterion.value as number)}`}>
+                  {criterion.value}
+                </span>
+              )}
+            </div>
+            {criterion.description && (
+              <p className="text-xs text-muted-foreground mb-4 leading-relaxed">{criterion.description}</p>
+            )}
+            {criterion.type === 'slider' && (
+              <>
+                <input
+                  id={inputId}
+                  type="range" min={1} max={5} step="1"
+                  value={criterion.value as number}
+                  onChange={(e) => onCustomCriterionValueChange(criterion.id, parseInt(e.target.value))}
+                  className="form-range w-full form-range-thumb-focus"
+                  aria-labelledby={`${inputId}-label`}
+                />
+                <p className="text-sm text-muted-foreground mt-3 text-center">
+                  Current: <span className="font-semibold text-card-foreground">{criterion.value} / 5</span>
+                </p>
+              </>
+            )}
+            {criterion.type === 'custom_options' && criterion.options && (
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {criterion.options.map((option, idx) => (
+                  <label key={idx} className="flex items-center space-x-2.5 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name={inputId}
+                      value={option}
+                      checked={criterion.value === option}
+                      onChange={() => onCustomCriterionValueChange(criterion.id, option)}
+                      className="form-radio h-4 w-4 text-primary focus:ring-ring border-input accent-primary"
+                    />
+                    <span className="text-sm text-foreground group-hover:text-primary">{option}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </fieldset>
+        </div>
+      );
+    })}
   </div>
 );
 
@@ -331,16 +388,64 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
   isEditing = false,
 }) => {
 
-  const handleScoreChange = (setter: Function, currentScores: LanguageSpecificRubricScores) => 
+  const handleScoreChange = (setter: Function, currentScores: LanguageSpecificRubricScores) =>
     (key: keyof LanguageSpecificRubricScores, value: string | number | VerifiableEntity[]) => {
       setter({ ...currentScores, [key]: value });
   };
-  
+
+  const handleCustomCriterionValueChange = (setter: Function, currentScores: LanguageSpecificRubricScores) =>
+    (id: string, value: number | string) => {
+      setter({
+        ...currentScores,
+        custom_criteria: currentScores.custom_criteria.map(c => c.id === id ? { ...c, value } : c),
+      });
+    };
+
   const handleDisparityMetricChange = (key: keyof HarmDisparityMetrics, value: string) => {
     onHarmDisparityMetricsChange({ ...harmDisparityMetrics, [key]: value });
   };
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSubmit(); };
+
+  // --- Custom criteria management ---
+  const [isAddingCriterion, setIsAddingCriterion] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newType, setNewType] = useState<'slider' | 'custom_options'>('slider');
+  const [newOptions, setNewOptions] = useState(['', '']);
+
+  const handleAddCriterion = () => {
+    if (!newLabel.trim()) return;
+    const id = `custom-${Date.now()}`;
+    const validOptions = newOptions.map(o => o.trim()).filter(Boolean);
+    const newCriterion: CustomCriterionScore = {
+      id,
+      label: newLabel.trim(),
+      description: newDesc.trim(),
+      type: newType,
+      value: newType === 'slider' ? 3 : (validOptions[0] ?? ''),
+      options: newType === 'custom_options' ? validOptions : undefined,
+    };
+    onEnglishScoresChange({ ...englishScores, custom_criteria: [...englishScores.custom_criteria, { ...newCriterion }] });
+    onNativeScoresChange({ ...nativeScores, custom_criteria: [...nativeScores.custom_criteria, { ...newCriterion }] });
+    setIsAddingCriterion(false);
+    setNewLabel('');
+    setNewDesc('');
+    setNewType('slider');
+    setNewOptions(['', '']);
+  };
+
+  const handleDeleteCriterion = (id: string) => {
+    onEnglishScoresChange({ ...englishScores, custom_criteria: englishScores.custom_criteria.filter(c => c.id !== id) });
+    onNativeScoresChange({ ...nativeScores, custom_criteria: nativeScores.custom_criteria.filter(c => c.id !== id) });
+  };
+
+  const handleOptionChange = (idx: number, val: string) => {
+    setNewOptions(prev => prev.map((o, i) => i === idx ? val : o));
+  };
+
+  const addOption = () => setNewOptions(prev => [...prev, '']);
+  const removeOption = (idx: number) => setNewOptions(prev => prev.filter((_, i) => i !== idx));
   
   // Use dynamic titles, with fallbacks for safety.
   // In the Reasoning Lab, 'english' scores map to Column A, 'native' to Column B.
@@ -383,6 +488,103 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
       
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-4 text-center">A. Single Response Harm Assessment</h3>
+
+        {/* Custom Criteria Management */}
+        <div className="mb-6 p-4 rounded-lg border border-dashed border-primary/40 bg-primary/5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">Custom Criteria</h4>
+              <p className="text-xs text-muted-foreground mt-0.5">Add your own evaluation criteria applied to both responses.</p>
+            </div>
+            {!isAddingCriterion && (
+              <button type="button" onClick={() => setIsAddingCriterion(true)}
+                className="text-sm bg-primary text-primary-foreground px-3 py-1.5 rounded-md hover:bg-primary-hover transition-colors">
+                + Add Criterion
+              </button>
+            )}
+          </div>
+
+          {/* Existing custom criteria list */}
+          {englishScores.custom_criteria.length > 0 && (
+            <ul className="space-y-2 mb-3">
+              {englishScores.custom_criteria.map(c => (
+                <li key={c.id} className="flex items-center justify-between bg-background rounded-md px-3 py-2 border border-border/70 text-sm">
+                  <span className="font-medium text-foreground">{c.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{c.type === 'slider' ? '1–5 Scale' : `Options: ${c.options?.join(', ')}`}</span>
+                    <button type="button" onClick={() => handleDeleteCriterion(c.id)}
+                      className="text-xs px-2 py-0.5 rounded bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors">
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Add criterion form */}
+          {isAddingCriterion && (
+            <div className="mt-2 space-y-3 bg-background p-4 rounded-lg border border-border">
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Criterion Name *</label>
+                <input type="text" value={newLabel} onChange={e => setNewLabel(e.target.value)}
+                  placeholder="e.g. Clarity, Cultural Relevance..."
+                  className="form-input w-full text-sm p-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Description (optional)</label>
+                <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2}
+                  placeholder="Describe what evaluators should look for..."
+                  className="form-textarea w-full text-sm p-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Scoring Type</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                    <input type="radio" checked={newType === 'slider'} onChange={() => setNewType('slider')} className="accent-primary" />
+                    1–5 Scale
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                    <input type="radio" checked={newType === 'custom_options'} onChange={() => setNewType('custom_options')} className="accent-primary" />
+                    Custom Options
+                  </label>
+                </div>
+              </div>
+              {newType === 'custom_options' && (
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Options (at least 2)</label>
+                  <div className="space-y-1.5">
+                    {newOptions.map((opt, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <input type="text" value={opt} onChange={e => handleOptionChange(idx, e.target.value)}
+                          placeholder={`Option ${idx + 1}`}
+                          className="form-input flex-grow text-sm p-1.5 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+                        {newOptions.length > 2 && (
+                          <button type="button" onClick={() => removeOption(idx)}
+                            className="text-xs px-1.5 py-1 rounded bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground">✕</button>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button" onClick={addOption}
+                      className="text-xs text-primary hover:underline mt-1">+ Add Option</button>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={handleAddCriterion}
+                  disabled={!newLabel.trim() || (newType === 'custom_options' && newOptions.filter(o => o.trim()).length < 2)}
+                  className="text-sm bg-primary text-primary-foreground px-4 py-1.5 rounded-md hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  Add to Both Columns
+                </button>
+                <button type="button" onClick={() => { setIsAddingCriterion(false); setNewLabel(''); setNewDesc(''); setNewType('slider'); setNewOptions(['', '']); }}
+                  className="text-sm bg-muted text-muted-foreground px-4 py-1.5 rounded-md hover:bg-accent transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6 mt-6">
           <fieldset disabled={isEnglishResponseError} className="space-y-4 disabled:opacity-60 disabled:cursor-not-allowed">
             {isEnglishResponseError && (
@@ -391,9 +593,9 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
               </div>
             )}
             <h4 className="text-md font-semibold text-center text-primary pb-2 border-b border-border mb-4">{safeTitleA}</h4>
-            <HarmAssessmentSection scores={englishScores} onScoreChange={handleScoreChange(onEnglishScoresChange, englishScores)} sectionIdPrefix="english-eval" />
+            <HarmAssessmentSection scores={englishScores} onScoreChange={handleScoreChange(onEnglishScoresChange, englishScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onEnglishScoresChange, englishScores)} sectionIdPrefix="english-eval" />
           </fieldset>
-          
+
           <fieldset disabled={isNativeResponseError} className="space-y-4 disabled:opacity-60 disabled:cursor-not-allowed">
              {isNativeResponseError && (
                 <div className="p-3 text-sm bg-destructive/10 text-destructive border border-destructive/20 rounded-lg text-center font-medium">
@@ -401,7 +603,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
                 </div>
               )}
             <h4 className="text-md font-semibold text-center text-primary pb-2 border-b border-border mb-4">{safeTitleB}</h4>
-            <HarmAssessmentSection scores={nativeScores} onScoreChange={handleScoreChange(onNativeScoresChange, nativeScores)} sectionIdPrefix="native-eval" />
+            <HarmAssessmentSection scores={nativeScores} onScoreChange={handleScoreChange(onNativeScoresChange, nativeScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onNativeScoresChange, nativeScores)} sectionIdPrefix="native-eval" />
           </fieldset>
         </div>
       </div>
