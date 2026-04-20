@@ -23,13 +23,18 @@ const App: React.FC = () => {
 
   // Check for API Keys on mount
   useEffect(() => {
-    const geminiKeyMissing = !config.API_KEY || (config.API_KEY as string) === "YOUR_GOOGLE_GEMINI_API_KEY_HERE";
-    const openaiKeyMissing = !config.OPENAI_API_KEY || (config.OPENAI_API_KEY as string) === "YOUR_OPENAI_API_KEY_HERE";
-    const mistralKeyMissing = !config.MISTRAL_API_KEY || (config.MISTRAL_API_KEY as string) === "YOUR_MISTRAL_API_KEY_HERE";
-    
-    if (geminiKeyMissing || openaiKeyMissing || mistralKeyMissing) {
+    const c = config as any;
+    const geminiKeyMissing = !c.API_KEY || c.API_KEY === "YOUR_GOOGLE_GEMINI_API_KEY_HERE" || c.API_KEY === "";
+    const openaiKeyMissing = !c.OPENAI_API_KEY || c.OPENAI_API_KEY === "YOUR_OPENAI_API_KEY_HERE" || c.OPENAI_API_KEY === "";
+    const mistralKeyMissing = !c.MISTRAL_API_KEY || c.MISTRAL_API_KEY === "YOUR_MISTRAL_API_KEY_HERE" || c.MISTRAL_API_KEY === "";
+    const openrouterKeyMissing = !c.OPENROUTER_API_KEY || c.OPENROUTER_API_KEY === "YOUR_OPENROUTER_API_KEY_HERE" || c.OPENROUTER_API_KEY === "";
+
+    // Warn if Gemini is missing (needed for translation + LLM-as-judge)
+    // or if no model provider is configured at all
+    const noModelProvider = openaiKeyMissing && mistralKeyMissing && openrouterKeyMissing;
+    if (geminiKeyMissing || noModelProvider) {
       setIsAnyApiKeyMissingOrPlaceholder(true);
-      console.warn("One or more API keys (Gemini, OpenAI, Mistral) are not defined or are placeholders in env.js. Some models may be unavailable.");
+      console.warn("One or more required API keys are missing in env.js. Some features may be unavailable.");
     } else {
       setIsAnyApiKeyMissingOrPlaceholder(false);
     }
