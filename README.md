@@ -2,7 +2,6 @@
 # Multilingual AI Safety Evaluation Laboratory
 
 #### 👩🏻‍💻 Web Platform for Evaluators:  [Multilingual LLM Safety Evaluation Lab](https://ai-safety-evaluation-lab.vercel.app/)
-_To create an account look at section 5. Access Control & Login_
 #### 📽️ Demo video 👇
 [![Watch the video](https://github.com/user-attachments/assets/643224c8-4c1d-4494-9020-43e6dc0ed9a7)](https://www.multilingualailab.com/demo)
 
@@ -118,9 +117,7 @@ The application features a two-level access system:
     *   **Login:** Admin credentials are set via environment variables. For local development, they can be set in `env.js`. For production (e.g., Vercel), they must be set in your project's environment variable settings (see Section 6 below).
 
 *   **Evaluator Access:**
-    *   **Username:** Your email address (e.g., `user@example.com`)
-    *   **Password:** Your email address (the same as your username)
-    *   **Permissions:** Evaluators can conduct experiments, submit evaluations, view only their own past evaluations, and download a CSV of their own data.
+    *   **Permissions:** By admins, evaluators can conduct experiments, submit evaluations, view only their own past evaluations, and download a CSV of their own data.
 
 ## 6. Configuration 
 
