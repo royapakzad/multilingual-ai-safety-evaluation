@@ -32,6 +32,18 @@ export interface VerifiableEntity {
 }
 
 /**
+ * Represents a user-defined custom evaluation criterion with its score.
+ */
+export interface CustomCriterionScore {
+  id: string;
+  label: string;
+  description: string;
+  type: 'slider' | 'custom_options';
+  value: number | string;
+  options?: string[];
+}
+
+/**
  * Defines the scoring rubric for a single language response (Section A: Harm Assessment),
  * aligned with human rights principles and new evaluation criteria.
  */
@@ -53,6 +65,9 @@ export interface LanguageSpecificRubricScores {
   
   // List of verifiable entities, replacing the old ExtractedEntities structure on this type
   entities: VerifiableEntity[];
+
+  // User-defined custom criteria
+  custom_criteria: CustomCriterionScore[];
 }
 
 /**
