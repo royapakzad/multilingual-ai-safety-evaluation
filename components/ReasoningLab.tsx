@@ -576,11 +576,16 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser }) => {
 
   const isRunExperimentDisabled = () => {
     if (isLoading || cooldown > 0 || isTranslating) return true;
-    const modelInfo = AVAILABLE_MODELS.find(m => m.id === selectedModel);
-    if (modelInfo) {
-      if (modelInfo.provider === 'gemini' && (!config.API_KEY || (config.API_KEY as string) === "YOUR_GOOGLE_GEMINI_API_KEY_HERE")) return true;
-      if (modelInfo.provider === 'openai' && (!config.OPENAI_API_KEY || (config.OPENAI_API_KEY as string) === "YOUR_OPENAI_API_KEY_HERE")) return true;
-      if (modelInfo.provider === 'mistral' && (!config.MISTRAL_API_KEY || (config.MISTRAL_API_KEY as string) === "YOUR_MISTRAL_API_KEY_HERE")) return true;
+    const c = config as any;
+    if (selectedModel.startsWith('openrouter/')) {
+      if (!c.OPENROUTER_API_KEY || c.OPENROUTER_API_KEY === "YOUR_OPENROUTER_API_KEY_HERE" || c.OPENROUTER_API_KEY === "") return true;
+    } else {
+      const modelInfo = AVAILABLE_MODELS.find(m => m.id === selectedModel);
+      if (modelInfo) {
+        if (modelInfo.provider === 'gemini' && (!config.API_KEY || (config.API_KEY as string) === "YOUR_GOOGLE_GEMINI_API_KEY_HERE")) return true;
+        if (modelInfo.provider === 'openai' && (!config.OPENAI_API_KEY || (config.OPENAI_API_KEY as string) === "YOUR_OPENAI_API_KEY_HERE")) return true;
+        if (modelInfo.provider === 'mistral' && (!c.MISTRAL_API_KEY || c.MISTRAL_API_KEY === "YOUR_MISTRAL_API_KEY_HERE")) return true;
+      }
     }
     return !promptA.trim() || !promptB.trim();
   };
@@ -728,7 +733,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser }) => {
         <section className="bg-card text-card-foreground p-6 sm:p-8 rounded-xl shadow-md border border-border">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6 pb-4 border-b border-border">1. Experiment Setup</h2>
           <div className="space-y-6">
-            <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} models={AVAILABLE_MODELS.filter(m => m.id !== 'openai/gpt-3.5-turbo')} />
+            <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
              <div className="space-y-4 pt-4 border-t border-border">
                  <div className="flex items-center space-x-4">
                     <h3 className="text-md font-semibold text-foreground">Scenario Input Method</h3>
