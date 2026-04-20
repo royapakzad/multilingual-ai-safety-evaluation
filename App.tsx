@@ -12,6 +12,7 @@ import Login from './components/PasswordGate';
 import Header from './components/Header';
 import ApiKeyWarning from './components/ApiKeyWarning';
 import ReasoningLab from './components/ReasoningLab';
+import EvaluationLobby from './components/EvaluationLobby';
 
 const App: React.FC = () => {
   // Core App State
@@ -20,6 +21,7 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [theme, setTheme] = useState<Theme>('light');
   const [isAnyApiKeyMissingOrPlaceholder, setIsAnyApiKeyMissingOrPlaceholder] = useState<boolean>(false);
+  const [evaluationName, setEvaluationName] = useState<string | null>(null);
 
   // Check for API Keys on mount
   useEffect(() => {
@@ -105,20 +107,37 @@ const App: React.FC = () => {
 
   if (!currentUser) return <Login onLoginSubmit={handleLoginSubmit} loginError={loginError} />;
 
+  if (!evaluationName) {
+    return (
+      <>
+        {isAnyApiKeyMissingOrPlaceholder && <ApiKeyWarning />}
+        <EvaluationLobby
+          currentUser={currentUser}
+          onEnter={setEvaluationName}
+          onLogout={handleLogout}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {isAnyApiKeyMissingOrPlaceholder && <ApiKeyWarning />}
-      <Header 
-        title={APP_TITLE} 
-        user={currentUser} 
-        currentTheme={theme} 
-        onThemeToggle={toggleTheme} 
+      <Header
+        title={APP_TITLE}
+        user={currentUser}
+        currentTheme={theme}
+        onThemeToggle={toggleTheme}
         onLogout={handleLogout}
         showBack={false}
       />
-      
+
       <main className="flex-grow container mx-auto p-4 sm:p-6 md:p-8" aria-live="polite">
-        <ReasoningLab currentUser={currentUser} />
+        <ReasoningLab
+          currentUser={currentUser}
+          evaluationName={evaluationName}
+          onLeaveEvaluation={() => setEvaluationName(null)}
+        />
       </main>
 
       <footer className="text-center py-6 border-t border-border text-xs text-muted-foreground">
