@@ -3,20 +3,16 @@
 import { ProviderType } from './common';
 
 /**
- * A union of all specific, selectable model IDs.
- * The format is 'provider/model-name'.
+ * Model ID string. Static models use 'provider/model-name' format.
+ * OpenRouter models use 'openrouter/provider/model-name' format.
  */
-export type LLMModelType = 
-  | 'gemini/gemini-2.5-flash'
-  | 'openai/gpt-3.5-turbo'
-  | 'openai/gpt-4o' // Added to support 'o3' comparison
-  | 'mistral/mistral-small-latest';
+export type LLMModelType = string;
 
 /**
  * Defines the structure for a model, including its display name and provider.
  */
 export interface ModelDefinition {
-  id: LLMModelType;
+  id: string;
   name: string;
   provider: ProviderType;
 }
