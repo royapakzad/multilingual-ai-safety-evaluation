@@ -12,7 +12,10 @@ export interface ReasoningEvaluationRecord {
   timestamp: string;
   userEmail: string;
   labType: 'reasoning';
-  
+
+  // Named evaluation session this record belongs to
+  evaluationName?: string;
+
   // Scenario & Model Info
   scenarioId: string;
   scenarioCategory: string;
