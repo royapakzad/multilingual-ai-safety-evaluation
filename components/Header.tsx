@@ -11,9 +11,11 @@ interface HeaderProps {
   onLogout: () => void;
   showBack?: boolean;
   onBack?: () => void;
+  onChangePassword?: () => void;
+  onOpenAccessRequests?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, user, currentTheme, onThemeToggle, onLogout, showBack, onBack }) => {
+const Header: React.FC<HeaderProps> = ({ title, user, currentTheme, onThemeToggle, onLogout, showBack, onBack, onChangePassword, onOpenAccessRequests }) => {
   return (
     <header className="bg-card text-card-foreground shadow-md sticky top-0 z-50 border-b border-border">
       <div className="container mx-auto px-4 md:px-6 py-3.5 flex justify-between items-center">
@@ -45,7 +47,23 @@ const Header: React.FC<HeaderProps> = ({ title, user, currentTheme, onThemeToggl
                 <span className="truncate max-w-[150px] md:max-w-xs">{user.email}</span>
                 <span className="text-xs opacity-80">({user.role})</span>
               </div>
-              <button 
+              {user.role === 'admin' && onOpenAccessRequests && (
+                <button
+                  onClick={onOpenAccessRequests}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Access Requests
+                </button>
+              )}
+              {onChangePassword && (
+                <button
+                  onClick={onChangePassword}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Change Password
+                </button>
+              )}
+              <button
                 onClick={onLogout}
                 className="p-2 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 aria-label="Logout"

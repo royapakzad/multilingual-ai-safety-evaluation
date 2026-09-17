@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multilingual LLM Safety Evaluation Labs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><path fill='%230060DF' d='M50 0L65 15L50 30L35 15L50 0Z M15 35L30 50L15 65L0 50L15 35Z M85 35L100 50L85 65L70 50L85 35Z M50 70L65 85L50 100L35 85L50 70Z M50 50L25 25L50 0L75 25L50 50Z' opacity='0.7'/><path fill='%23004CBF' d='M50 50L0 50L25 25L50 50Z M50 50L50 100L75 75L50 50Z M50 50L100 50L75 25L50 50Z M50 50L50 0L25 25L50 50Z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+
+<script>
+  // Apply theme from localStorage or system preference
+  (function() {
+    let theme = 'light'; // Default theme
+    try {
+      const storedTheme = localStorage.getItem('theme');
+      if (storedTheme === 'light' || storedTheme === 'dark') {
+        theme = storedTheme;
+      } else {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+    } catch (e) {
+      console.warn('Failed to access localStorage for initial theme in inline script:', e);
+      try {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } catch (e2) {
+          console.warn('Failed to access window.matchMedia for initial theme:', e2);
+          theme = 'light';
+      }
+    }
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    } else {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    }
+  })();
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.4.0",
+    "openai": "https://esm.sh/openai@^4.33.0",
+    "@mistralai/mistralai": "https://esm.sh/@mistralai/mistralai@^0.4.0",
+    "marked": "https://esm.sh/marked@^12.0.2",
+    "dompurify": "https://esm.sh/dompurify@^3.0.11",
+    "./env.js": "./env.js"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-DrjdadBa.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-IiFGrf33.css">
+</head>
+<body class="bg-background text-foreground">
+  <div id="root"></div>
+</body>
+</html>

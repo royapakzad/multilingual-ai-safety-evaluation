@@ -11,6 +11,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@google/genai": "^1.11.0",
     "@mistralai/mistralai": "^1.7.5",
     "dompurify": "^3.2.6",

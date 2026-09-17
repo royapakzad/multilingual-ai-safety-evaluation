@@ -7,9 +7,11 @@ interface EvaluationLobbyProps {
   currentUser: User;
   onEnter: (evaluationName: string) => void;
   onLogout: () => void;
+  onChangePassword?: () => void;
+  onOpenAccessRequests?: () => void;
 }
 
-const EvaluationLobby: React.FC<EvaluationLobbyProps> = ({ currentUser, onEnter, onLogout }) => {
+const EvaluationLobby: React.FC<EvaluationLobbyProps> = ({ currentUser, onEnter, onLogout, onChangePassword, onOpenAccessRequests }) => {
   const [newName, setNewName] = useState('');
   const [existingNames, setExistingNames] = useState<{ name: string; count: number; lastUsed: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +59,22 @@ const EvaluationLobby: React.FC<EvaluationLobbyProps> = ({ currentUser, onEnter,
         <span className="font-bold text-lg text-primary">LLM Evaluation Labs</span>
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground">{currentUser.email}</span>
+          {currentUser.role === 'admin' && onOpenAccessRequests && (
+            <button
+              onClick={onOpenAccessRequests}
+              className="text-sm text-primary hover:underline transition-colors"
+            >
+              Access Requests
+            </button>
+          )}
+          {onChangePassword && (
+            <button
+              onClick={onChangePassword}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Change Password
+            </button>
+          )}
           <button
             onClick={onLogout}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"

@@ -13,6 +13,8 @@ import Header from './components/Header';
 import ApiKeyWarning from './components/ApiKeyWarning';
 import ReasoningLab from './components/ReasoningLab';
 import EvaluationLobby from './components/EvaluationLobby';
+import ChangePassword from './components/ChangePassword';
+import AccessRequestsPanel from './components/AccessRequestsPanel';
 
 const App: React.FC = () => {
   // Core App State
@@ -22,6 +24,8 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('light');
   const [isAnyApiKeyMissingOrPlaceholder, setIsAnyApiKeyMissingOrPlaceholder] = useState<boolean>(false);
   const [evaluationName, setEvaluationName] = useState<string | null>(null);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showAccessRequests, setShowAccessRequests] = useState(false);
 
   // Check for API Keys on mount
   useEffect(() => {
@@ -115,7 +119,11 @@ const App: React.FC = () => {
           currentUser={currentUser}
           onEnter={setEvaluationName}
           onLogout={handleLogout}
+          onChangePassword={() => setShowChangePassword(true)}
+          onOpenAccessRequests={() => setShowAccessRequests(true)}
         />
+        {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
+        {showAccessRequests && <AccessRequestsPanel onClose={() => setShowAccessRequests(false)} />}
       </>
     );
   }
@@ -130,6 +138,8 @@ const App: React.FC = () => {
         onThemeToggle={toggleTheme}
         onLogout={handleLogout}
         showBack={false}
+        onChangePassword={() => setShowChangePassword(true)}
+        onOpenAccessRequests={() => setShowAccessRequests(true)}
       />
 
       <main className="flex-grow container mx-auto p-4 sm:p-6 md:p-8" aria-live="polite">
@@ -143,6 +153,9 @@ const App: React.FC = () => {
       <footer className="text-center py-6 border-t border-border text-xs text-muted-foreground">
         LLM Evaluation Labs &copy; {new Date().getFullYear()}. For research and educational purposes.
       </footer>
+
+      {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
+      {showAccessRequests && <AccessRequestsPanel onClose={() => setShowAccessRequests(false)} />}
     </div>
   );
 };

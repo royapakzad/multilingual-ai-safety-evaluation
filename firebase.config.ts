@@ -16,6 +16,10 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID || "1:1026821613424:web:e5bd1c2500d38ec27a51b5"
 };
 
+// Exported so a secondary app instance can be spun up (e.g. to create a user
+// account without disturbing the currently signed-in admin's session).
+export { firebaseConfig };
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
