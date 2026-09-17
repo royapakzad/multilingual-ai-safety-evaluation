@@ -20,10 +20,10 @@
 // access requests still work via the in-app Pending Requests panel.
 import emailjs from '@emailjs/browser';
 
-const EMAILJS_SERVICE_ID = 'YOUR_EMAILJS_SERVICE_ID';
-const EMAILJS_NEW_REQUEST_TEMPLATE_ID = 'YOUR_EMAILJS_NEW_REQUEST_TEMPLATE_ID';
-const EMAILJS_APPROVED_TEMPLATE_ID = 'YOUR_EMAILJS_APPROVED_TEMPLATE_ID';
-const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY';
+const EMAILJS_SERVICE_ID = 'service_1qip2hy';
+const EMAILJS_NEW_REQUEST_TEMPLATE_ID = 'template_dfp539k';
+const EMAILJS_APPROVED_TEMPLATE_ID = 'template_kdzem9b';
+const EMAILJS_PUBLIC_KEY = 'GTvqTJUSnMjvEK0Jz';
 
 const ADMIN_EMAIL = 'rpakzad@taraazresearch.org';
 
