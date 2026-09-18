@@ -564,6 +564,35 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     }
   };
   
+  const handleRenameGroup = async (oldGroupName: string, groupEvals: ReasoningEvaluationRecord[]) => {
+    const suggested = oldGroupName === 'Unnamed' ? '' : oldGroupName;
+    const proposed = window.prompt(`Rename "${oldGroupName}" (${groupEvals.length} entries) to:`, suggested);
+    if (proposed === null) return; // cancelled
+    const trimmed = proposed.trim();
+    if (!trimmed) {
+      alert('Name cannot be empty.');
+      return;
+    }
+    if (!window.confirm(
+      `Rename all ${groupEvals.length} entries from "${oldGroupName}" to "${trimmed}"?\n\n` +
+      `This only changes the evaluation label. No responses, scores, or notes will be modified.`
+    )) {
+      return;
+    }
+
+    try {
+      const idsToRename = groupEvals.map(ev => ev.id);
+      await db.renameEvaluationGroup(idsToRename, trimmed);
+      setAllEvaluations(allEvaluations.map(ev =>
+        idsToRename.includes(ev.id) ? { ...ev, evaluationName: trimmed } : ev
+      ));
+      alert(`Renamed ${groupEvals.length} entries to "${trimmed}".`);
+    } catch (e) {
+      setError('Failed to rename evaluation group. Please try again.');
+      console.error('Failed to rename evaluation group:', e);
+    }
+  };
+
   const handleDeleteEvaluation = async (evaluationId: string) => {
     if (!window.confirm("Are you sure you want to permanently delete this evaluation? This action cannot be undone.")) {
       return;
@@ -951,6 +980,12 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                             {groupEvals.length} {groupEvals.length === 1 ? 'entry' : 'entries'}
                           </span>
+                          <button
+                            onClick={() => handleRenameGroup(groupName, groupEvals)}
+                            className="ml-auto text-xs text-primary hover:underline font-medium"
+                          >
+                            Rename
+                          </button>
                         </div>
                         <div className="space-y-4">
                           {groupEvals.map((ev) => {
