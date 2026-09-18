@@ -12,6 +12,7 @@ let geminiAi: GoogleGenAI | null = null;
 let openaiAi: OpenAI | null = null;
 let mistralAi: Mistral | null = null;
 let openrouterAi: OpenAI | null = null;
+let huggingfaceAi: OpenAI | null = null;
 
 /**
  * Initializes the Google Gemini client if not already initialized.
@@ -70,12 +71,33 @@ const initializeOpenRouter = () => {
 };
 
 /**
+ * Initializes the Hugging Face Inference Providers client if not already initialized.
+ * Uses HF's OpenAI-compatible router, which proxies to whichever backend (e.g. Public AI)
+ * actually serves the requested model — this is how we reach Apertus/SwissAI models.
+ * @throws {Error} if the API key is missing or a placeholder.
+ */
+const initializeHuggingFace = () => {
+  if (huggingfaceAi) return;
+  const apiKey = (config as any).HUGGINGFACE_API_KEY;
+  if (!apiKey || apiKey === "YOUR_HUGGINGFACE_API_KEY_HERE") {
+    throw new Error("HUGGINGFACE_API_KEY_MISSING_OR_PLACEHOLDER");
+  }
+  huggingfaceAi = new OpenAI({
+    apiKey,
+    baseURL: "https://router.huggingface.co/v1",
+    dangerouslyAllowBrowser: true,
+  });
+};
+
+/**
  * Gets the provider for a model ID based on its prefix.
  * OpenRouter models: 'openrouter/...'
+ * Hugging Face models: 'huggingface/...'
  * Static models: 'gemini/...', 'openai/...', 'mistral/...'
  */
 const getModelProvider = (modelId: string) => {
     if (modelId.startsWith('openrouter/')) return 'openrouter' as const;
+    if (modelId.startsWith('huggingface/')) return 'huggingface' as const;
     if (modelId.startsWith('gemini/')) return 'gemini' as const;
     if (modelId.startsWith('openai/')) return 'openai' as const;
     if (modelId.startsWith('mistral/')) return 'mistral' as const;
@@ -101,9 +123,12 @@ export const generateLlmResponse = async (prompt: string, modelId: string, provi
 
   const provider = getModelProvider(modelId);
   // For openrouter models: 'openrouter/anthropic/claude-3-opus' → 'anthropic/claude-3-opus'
+  // For huggingface models: 'huggingface/swiss-ai/Apertus-8B-Instruct-2509' → 'swiss-ai/Apertus-8B-Instruct-2509' (the HF repo id)
   // For static models: 'openai/gpt-4o' → 'gpt-4o'
   const actualModelId = provider === 'openrouter'
     ? modelId.substring('openrouter/'.length)
+    : provider === 'huggingface'
+    ? modelId.substring('huggingface/'.length)
     : modelId.substring(modelId.indexOf('/') + 1);
 
   try {
@@ -168,6 +193,20 @@ export const generateLlmResponse = async (prompt: string, modelId: string, provi
       return response.choices[0]?.message?.content?.trim() ||
         `No text content received from OpenRouter. Finish reason: ${response.choices[0]?.finish_reason || 'N/A'}.`;
 
+    } else if (provider === 'huggingface') {
+      initializeHuggingFace();
+      if (!huggingfaceAi) throw new Error("Hugging Face client not initialized.");
+
+      const messages: any[] = [];
+      if (providerConfig?.systemInstruction) {
+        messages.push({ role: "system", content: providerConfig.systemInstruction });
+      }
+      messages.push({ role: "user", content: prompt });
+
+      const response = await huggingfaceAi.chat.completions.create({ model: actualModelId, messages });
+      return response.choices[0]?.message?.content?.trim() ||
+        `No text content received from Hugging Face. Finish reason: ${response.choices[0]?.finish_reason || 'N/A'}.`;
+
     } else {
       throw new Error(`Unsupported LLM provider: ${provider}`);
     }
@@ -176,7 +215,7 @@ export const generateLlmResponse = async (prompt: string, modelId: string, provi
     let errorMessage = `Failed to get response from ${provider}.`;
     if (error instanceof Error) {
         if (error.message.includes("_API_KEY_MISSING_OR_PLACEHOLDER")) {
-            const providerLabel = provider === 'openrouter' ? 'OpenRouter' : provider;
+            const providerLabel = provider === 'openrouter' ? 'OpenRouter' : provider === 'huggingface' ? 'Hugging Face' : provider;
             errorMessage = `API key for ${providerLabel} is missing or is a placeholder in env.js.`;
         } else if ((error as any).status === 401 || error.message?.toLowerCase().includes('api key')) {
             errorMessage = `API key for ${provider} is not valid. Please check it. Original error: ${error.message}`;

@@ -3,7 +3,7 @@
 /**
  * Defines the supported LLM providers.
  */
-export type ProviderType = 'gemini' | 'openai' | 'mistral' | 'openrouter';
+export type ProviderType = 'gemini' | 'openai' | 'mistral' | 'openrouter' | 'huggingface';
 
 /**
  * Represents a single chat message in the UI, with optional error state.
