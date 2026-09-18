@@ -162,15 +162,12 @@ const SetupColumn: React.FC<{
 
 interface ReasoningLabProps {
     currentUser: User;
-    evaluationName: string;
-    onLeaveEvaluation: () => void;
 }
 
-const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName, onLeaveEvaluation }) => {
+const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser }) => {
   // View mode state
   const [viewMode, setViewMode] = useState<'list' | 'dashboard'>('list');
   const [isLoadingEvaluations, setIsLoadingEvaluations] = useState<boolean>(true);
-  const [showAllEvaluations, setShowAllEvaluations] = useState<boolean>(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -473,7 +470,6 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
         timestamp: new Date().toISOString(), // Always update timestamp on edit
         userEmail: existingRecord?.userEmail || currentUser.email, // Preserve original evaluator email
         labType: 'reasoning',
-        evaluationName,
         scenarioId, scenarioCategory,
         scenarioContext: currentScenarioContext,
         languagePair: `English - ${langInfo?.name || "N/A"}`,
@@ -719,13 +715,9 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     }
   };
   
-  const isAdminShowAll = currentUser.role === 'admin' && showAllEvaluations;
-
   const visibleEvaluations = allEvaluations.filter(evaluation => {
-    // Filter by named evaluation session unless admin is viewing all
-    if (!isAdminShowAll && evaluation.evaluationName !== evaluationName) return false;
-
     if (!searchQuery.trim()) return true;
+
     const query = searchQuery.toLowerCase();
     return evaluation.promptA.toLowerCase().includes(query) ||
            evaluation.promptB.toLowerCase().includes(query) ||
@@ -733,33 +725,9 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
            evaluation.titleA.toLowerCase().includes(query) ||
            evaluation.titleB.toLowerCase().includes(query);
   });
-
-  // For admin "show all" mode: group evaluations by their named session
-  const groupedEvaluations: Record<string, ReasoningEvaluationRecord[]> = isAdminShowAll
-    ? visibleEvaluations.slice().reverse().reduce((acc, ev) => {
-        const key = ev.evaluationName || 'Unnamed';
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(ev);
-        return acc;
-      }, {} as Record<string, ReasoningEvaluationRecord[]>)
-    : {};
   
   return (
     <div className="space-y-16">
-        {/* Evaluation session banner */}
-        <div className="flex items-center justify-between px-5 py-3 bg-primary/5 border border-primary/20 rounded-xl">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Evaluation</span>
-            <span className="font-bold text-foreground text-base">{evaluationName}</span>
-          </div>
-          <button
-            onClick={onLeaveEvaluation}
-            className="text-sm text-primary hover:underline font-medium"
-          >
-            Switch evaluation
-          </button>
-        </div>
-
         {error && <div role="alert" className="mb-6 p-4 bg-destructive text-destructive-foreground rounded-lg shadow-lg">{error}</div>}
         
         <section className="bg-card text-card-foreground p-6 sm:p-8 rounded-xl shadow-md border border-border">
@@ -864,19 +832,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
 
         <section>
            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 pb-4 border-b border-border/70">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground">
-                {isAdminShowAll ? 'All Comparison Reports' : `"${evaluationName}" Reports`}
-              </h2>
-              {currentUser.role === 'admin' && (
-                <button
-                  onClick={() => setShowAllEvaluations(v => !v)}
-                  className="mt-1 text-xs text-primary hover:underline"
-                >
-                  {isAdminShowAll ? `Show only "${evaluationName}"` : 'Show all evaluations (admin)'}
-                </button>
-              )}
-            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">{currentUser.role === 'admin' ? 'All Comparison Reports' : 'My Comparison Reports'}</h2>
              <div className="flex items-center gap-4 mt-4 sm:mt-0">
                  <div className="bg-muted p-1 rounded-lg flex items-center text-sm font-medium">
                     <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:bg-background/50'}`}>List</button>
@@ -941,82 +897,6 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
             </div>
           ) : (
              viewMode === 'list' ? (
-                isAdminShowAll ? (
-                  // Grouped by evaluation name for admin "show all" view
-                  <div className="space-y-12">
-                    {Object.entries(groupedEvaluations).map(([groupName, groupEvals]) => (
-                      <div key={groupName}>
-                        <div className="flex items-center gap-3 mb-4 pb-2 border-b border-border">
-                          <h3 className="text-lg font-bold text-foreground">{groupName}</h3>
-                          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                            {groupEvals.length} {groupEvals.length === 1 ? 'entry' : 'entries'}
-                          </span>
-                        </div>
-                        <div className="space-y-4">
-                          {groupEvals.map((ev) => {
-                            const canEdit = currentUser.role === 'admin' || currentUser.email === ev.userEmail;
-                            return (
-                              <details key={ev.id} className={`bg-card text-card-foreground rounded-xl shadow-md border overflow-hidden transition-all duration-300 ${ev.isFlaggedForReview ? 'border-destructive ring-2 ring-destructive' : 'border-border'}`}>
-                                <summary className="px-6 py-5 cursor-pointer list-none flex justify-between items-center hover:bg-muted/60">
-                                  <div className="flex-grow">
-                                      <h3 className="text-lg font-semibold text-primary">{ev.isFlaggedForReview && '🚩 '}{ev.titleA} vs. {ev.titleB}</h3>
-                                      <p className="text-xs text-muted-foreground mt-1">Model: {AVAILABLE_MODELS.find(m => m.id === ev.model)?.name || ev.model} | Evaluator: {ev.userEmail} | {new Date(ev.timestamp).toLocaleString()}</p>
-                                  </div>
-                                  <div className="ml-4 flex-shrink-0 flex items-center gap-4">
-                                     {ev.llmEvaluationStatus === 'pending' && <Tooltip content="LLM evaluation in progress..."><LoadingSpinner size="sm" color="text-primary" /></Tooltip>}
-                                     {ev.llmEvaluationStatus === 'failed' && <Tooltip content={`LLM evaluation failed: ${ev.llmEvaluationError}`}><span className="text-destructive text-xl">⚠️</span></Tooltip>}
-                                     {ev.llmEvaluationStatus === 'completed' && <Tooltip content="LLM evaluation completed"><span className="text-accent text-xl">🤖</span></Tooltip>}
-                                     <div className="text-primary transition-transform duration-200 transform details-summary-marker"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg></div>
-                                  </div>
-                                </summary>
-                                <div className="px-6 py-6 border-t border-border bg-background/50 text-sm space-y-6">
-                                  {ev.scenarioContext && (
-                                      <div className="mb-4">
-                                          <h4 className="font-semibold text-foreground/90 mb-1.5 text-base">Scenario Context:</h4>
-                                          <p className="italic text-muted-foreground bg-muted p-3 rounded-md text-xs max-h-32 overflow-y-auto custom-scrollbar" tabIndex={0}>{ev.scenarioContext}</p>
-                                      </div>
-                                  )}
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                                      <div><h4 className="font-semibold text-foreground/90 mb-1.5 text-base">{ev.titleA} Prompt:</h4><p className="italic text-muted-foreground bg-muted p-3 rounded-md text-xs max-h-32 overflow-y-auto custom-scrollbar" tabIndex={0}>{ev.promptA}</p></div>
-                                      <div><h4 className="font-semibold text-foreground/90 mb-1.5 text-base">{ev.titleB} Prompt:</h4><p className="italic text-muted-foreground bg-muted p-3 rounded-md text-xs max-h-32 overflow-y-auto custom-scrollbar" tabIndex={0}>{ev.promptB}</p></div>
-                                  </div>
-                                  {ev.llmEvaluationStatus === 'completed' && ev.llmScores ? (
-                                      <EvaluationComparison humanScores={ev.humanScores} llmScores={ev.llmScores} humanNotes={ev.notes} titleA={ev.titleA} titleB={ev.titleB} />
-                                  ) : (
-                                     <div className="text-center py-8 bg-muted rounded-lg">
-                                          <p className="text-muted-foreground">Evaluation comparison will be shown here once the LLM evaluation is complete.</p>
-                                          {ev.llmEvaluationStatus === 'pending' && <div className="mt-4 flex justify-center items-center gap-2"><LoadingSpinner size="sm"/><span>LLM evaluation in progress...</span></div>}
-                                          {ev.llmEvaluationStatus === 'failed' && <p className="mt-2 text-destructive">LLM evaluation failed: {ev.llmEvaluationError}</p>}
-                                     </div>
-                                  )}
-                                  <div className="mt-6 flex justify-between items-center pt-4 border-t border-border/50">
-                                       <div className="flex items-center gap-2">
-                                          {canEdit && (
-                                              <button onClick={() => handleStartEdit(ev.id)} className="px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 text-primary hover:bg-primary/10" aria-label="Edit this evaluation">
-                                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" /><path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" /></svg>
-                                                  <span>Edit</span>
-                                              </button>
-                                          )}
-                                          <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 text-destructive hover:bg-destructive/10" aria-label="Delete this evaluation">
-                                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 01-8.832 0v-.227a3 3 0 013-3h2.666a3 3 0 013 3zM3.5 6A1.5 1.5 0 002 7.5v9A1.5 1.5 0 003.5 18h13a1.5 1.5 0 001.5-1.5v-9A1.5 1.5 0 0016.5 6h-13zM8 10a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 10zm4 0a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0112 10z" clipRule="evenodd" /></svg>
-                                              <span>Delete Evaluation</span>
-                                          </button>
-                                       </div>
-                                      <div className="flex items-center gap-2">
-                                          <button onClick={() => handleToggleFlagForReview(ev.id)} className={`px-4 py-2 text-xs font-semibold rounded-lg shadow-sm transition-all duration-200 flex items-center gap-2 ${ev.isFlaggedForReview ? 'bg-destructive/80 text-destructive-foreground hover:bg-destructive' : 'bg-secondary text-secondary-foreground hover:bg-muted'}`} aria-label={ev.isFlaggedForReview ? 'Unflag this evaluation' : 'Flag this evaluation for admin review'}>
-                                              {ev.isFlaggedForReview ? '🚩 Unflag' : 'Flag for Review'}
-                                          </button>
-                                      </div>
-                                  </div>
-                                </div>
-                              </details>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
                 <div className="space-y-8">
                   {visibleEvaluations.slice().reverse().map((ev) => {
                     const canEdit = currentUser.role === 'admin' || currentUser.email === ev.userEmail;
@@ -1093,7 +973,6 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                     </details>
                   )})}
                 </div>
-                ) /* end isAdminShowAll ternary */
             ) : (
                 <ReasoningDashboard evaluations={visibleEvaluations} />
             )
