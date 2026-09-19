@@ -582,13 +582,24 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
 
     try {
       const idsToRename = groupEvals.map(ev => ev.id);
-      await db.renameEvaluationGroup(idsToRename, trimmed);
+      const { succeededIds, failed } = await db.renameEvaluationGroup(idsToRename, trimmed);
+      const succeededSet = new Set(succeededIds);
       setAllEvaluations(allEvaluations.map(ev =>
-        idsToRename.includes(ev.id) ? { ...ev, evaluationName: trimmed } : ev
+        succeededSet.has(ev.id) ? { ...ev, evaluationName: trimmed } : ev
       ));
-      alert(`Renamed ${groupEvals.length} entries to "${trimmed}".`);
+      if (failed.length > 0) {
+        console.error('Some records failed to rename:', failed);
+        alert(
+          `Renamed ${succeededIds.length} of ${groupEvals.length} entries to "${trimmed}". ` +
+          `${failed.length} failed (first error: ${failed[0].error}) — see console for details. ` +
+          `The failed ones are unchanged and still in "${oldGroupName}".`
+        );
+      } else {
+        alert(`Renamed ${groupEvals.length} entries to "${trimmed}".`);
+      }
     } catch (e) {
-      setError('Failed to rename evaluation group. Please try again.');
+      const message = e instanceof Error ? e.message : String(e);
+      setError(`Failed to rename evaluation group: ${message}`);
       console.error('Failed to rename evaluation group:', e);
     }
   };

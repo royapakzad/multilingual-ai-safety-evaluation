@@ -77,10 +77,27 @@ const EvaluationLobby: React.FC<EvaluationLobbyProps> = ({ currentUser, onEnter,
     }
     setIsNamingUnnamed(true);
     try {
-      await db.renameEvaluationGroup(unnamed.ids, trimmed);
+      const { succeededIds, failed } = await db.renameEvaluationGroup(unnamed.ids, trimmed);
+      if (failed.length > 0) {
+        console.error('Some records failed to rename:', failed);
+        if (succeededIds.length === 0) {
+          alert(
+            `Failed to name any of the ${unnamed.count} entries. First error: ${failed[0].error}\n\n` +
+            `Open the browser console for the full list. Nothing was changed.`
+          );
+          setIsNamingUnnamed(false);
+          return;
+        }
+        alert(
+          `Named ${succeededIds.length} of ${unnamed.count} entries as "${trimmed}". ` +
+          `${failed.length} failed (first error: ${failed[0].error}) — see console for details. ` +
+          `Continuing with the ones that succeeded; the rest are still "Untitled" and can be retried.`
+        );
+      }
       onEnter(trimmed);
     } catch (e) {
-      alert('Failed to name this evaluation. Please try again.');
+      const message = e instanceof Error ? e.message : String(e);
+      alert(`Failed to name this evaluation: ${message}`);
       console.error('Failed to rename unnamed evaluations from lobby:', e);
       setIsNamingUnnamed(false);
     }
