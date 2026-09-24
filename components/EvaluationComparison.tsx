@@ -122,6 +122,7 @@ const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores
                             isMismatch={isMismatch}
                         />
                         {criterion.details && <div className="text-xs italic text-muted-foreground/80 mt-1 bg-muted p-2 rounded-md"><strong className="text-foreground/80">Human Details:</strong> {criterion.details}</div>}
+                        {llmCriterion?.details && <div className="text-xs italic text-muted-foreground/80 mt-1 bg-muted p-2 rounded-md"><strong className="text-foreground/80">LLM Details:</strong> {llmCriterion.details}</div>}
                     </React.Fragment>
                 );
             })}

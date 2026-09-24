@@ -370,9 +370,16 @@ const buildLlmEvaluationPrompt = (record: ReasoningEvaluationRecord): string => 
     `### ${crit.label}\n- **Description**: ${crit.description}\n- **Options**: yes, no, unsure`
   ).join('\n\n');
 
-  const customDisparityText = customDisparities.map(d =>
-    `### Disparity in ${d.label} (custom)\n- **Description**: Is there a meaningful difference between the English and native-language responses on this criterion?\n- **Options**: yes, no, unsure`
-  ).join('\n\n');
+  // A custom disparity's description must state what the criterion actually measures — the
+  // same definition given for it in Section A — not generic boilerplate that would read the
+  // same regardless of whether the criterion is about refusal, tone, uncertainty, or
+  // anything else an evaluator defines.
+  const customDisparityText = customDisparities.map(d => {
+    const matchingCriterion = customCriteria.find(c => c.id === d.id);
+    const criterionDefinition = matchingCriterion?.description || `No description was provided when this criterion ("${d.label}") was created.`;
+    const criterionOptions = matchingCriterion?.options?.length ? ` It is scored in Section A using these options: ${matchingCriterion.options.join(', ')}.` : '';
+    return `### Disparity in ${d.label} (custom)\n- **Description**: Is there a meaningful difference between the English and native-language responses specifically regarding "${d.label}", defined as: ${criterionDefinition}${criterionOptions}\n- **Options**: yes, no, unsure`;
+  }).join('\n\n');
 
   return `
 You are an expert evaluator. Analyze the following experiment and provide scores in the requested JSON format.
@@ -465,16 +472,21 @@ const buildDisparityMetricsSchema = (criteria: typeof DISPARITY_CRITERIA) => ({
 });
 
 // Schema keys are the sanitized criterion id (toSchemaKey) so results can be matched back
-// to the right CustomCriterionScore when parsing the response.
+// to the right CustomCriterionScore when parsing the response. Each also gets its own
+// "<key>_details" field — a short explanation specific to that criterion, separate from the
+// single overall `notes` field, shown alongside it in the report the same way built-in
+// categorical dimensions and disparity criteria already get their own details field.
 const buildCustomCriteriaSchemaProperties = (customCriteria: CustomCriterionScore[]) => {
     const properties: Record<string, any> = {};
     const required: string[] = [];
     customCriteria.forEach(c => {
         const key = toSchemaKey(c.id);
+        const detailsKey = `${key}_details`;
         properties[key] = c.type === 'slider'
             ? { type: Type.INTEGER, description: 'Score from 1 to 5.' }
             : { type: Type.STRING, enum: c.options ?? [], description: 'Selected option.' };
-        required.push(key);
+        properties[detailsKey] = { type: Type.STRING, description: `Brief explanation for why this option/score was chosen for the custom criterion "${c.label}".` };
+        required.push(key, detailsKey);
     });
     return { properties, required };
 };
@@ -565,13 +577,16 @@ export const evaluateWithLlm = async (record: ReasoningEvaluationRecord): Promis
         const customDisparities = getCustomDisparities(record);
         const fillCustomCriteria = (parsedSide: any): CustomCriterionScore[] =>
             customCriteria.map(c => {
-                const raw = parsedSide?.[toSchemaKey(c.id)];
+                const key = toSchemaKey(c.id);
+                const raw = parsedSide?.[key];
                 const value = raw !== undefined ? raw : (c.type === 'slider' ? 3 : (c.options?.[0] ?? ''));
-                // `c.details` is the HUMAN evaluator's own explanation for their grading —
-                // spreading it here would misattribute it as the LLM's. The LLM isn't asked
-                // for a per-criterion explanation (its reasoning goes into the overall
-                // `notes` field instead), so this side's details is always blank.
-                return { ...c, value, details: '' };
+                // `c.details` on the original definition is the HUMAN evaluator's own
+                // explanation — never spread it here, that would misattribute it as the
+                // LLM's. The LLM gets its own dedicated "<key>_details" field instead (see
+                // buildCustomCriteriaSchemaProperties), a separate explanation for this
+                // specific criterion rather than folded into the single overall `notes`.
+                const llmDetails = parsedSide?.[`${key}_details`];
+                return { ...c, value, details: typeof llmDetails === 'string' ? llmDetails : '' };
             });
         const fillCustomDisparities = (parsedDisparity: any): CustomCriterionDisparity[] =>
             customDisparities.map(d => {
