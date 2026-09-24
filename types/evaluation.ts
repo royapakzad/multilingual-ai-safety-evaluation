@@ -41,6 +41,9 @@ export interface CustomCriterionScore {
   type: 'slider' | 'custom_options';
   value: number | string;
   options?: string[];
+  // Evaluator's brief free-text explanation of why they picked this value — distinct from
+  // `description`, which is the criterion's own definition set when it was created.
+  details: string;
 }
 
 /**

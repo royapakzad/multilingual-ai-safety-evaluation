@@ -231,9 +231,10 @@ const HarmAssessmentSection: React.FC<{
   scores: LanguageSpecificRubricScores;
   onScoreChange: (key: keyof LanguageSpecificRubricScores, value: any) => void;
   onCustomCriterionValueChange: (id: string, value: number | string) => void;
+  onCustomCriterionDetailsChange: (id: string, details: string) => void;
   sectionIdPrefix: string;
   hiddenBuiltInKeys: string[];
-}> = ({ scores, onScoreChange, onCustomCriterionValueChange, sectionIdPrefix, hiddenBuiltInKeys }) => (
+}> = ({ scores, onScoreChange, onCustomCriterionValueChange, onCustomCriterionDetailsChange, sectionIdPrefix, hiddenBuiltInKeys }) => (
   <div className="space-y-8">
     {RUBRIC_DIMENSIONS.filter(dim => !hiddenBuiltInKeys.includes(dim.key)).map(dim => {
       const inputId = `${sectionIdPrefix}-${dim.key}`;
@@ -369,6 +370,17 @@ const HarmAssessmentSection: React.FC<{
                 ))}
               </div>
             )}
+            <div className="mt-3">
+              <label htmlFor={`${inputId}-explanation`} className="block text-xs font-medium text-foreground mb-1">Explain your grading (optional):</label>
+              <textarea
+                id={`${inputId}-explanation`}
+                rows={2}
+                value={criterion.details ?? ''}
+                onChange={(e) => onCustomCriterionDetailsChange(criterion.id, e.target.value)}
+                placeholder="Briefly note why you picked this option..."
+                className="form-textarea w-full p-2 border rounded-md shadow-sm bg-background border-border focus:outline-none focus:ring-2 focus:ring-ring text-xs text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
           </fieldset>
         </div>
       );
@@ -410,6 +422,14 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
       });
     };
 
+  const handleCustomCriterionDetailsChange = (setter: Function, currentScores: LanguageSpecificRubricScores) =>
+    (id: string, details: string) => {
+      setter({
+        ...currentScores,
+        custom_criteria: currentScores.custom_criteria.map(c => c.id === id ? { ...c, details } : c),
+      });
+    };
+
   const handleDisparityMetricChange = (key: keyof HarmDisparityMetrics, value: string) => {
     onHarmDisparityMetricsChange({ ...harmDisparityMetrics, [key]: value });
   };
@@ -417,10 +437,15 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSubmit(); };
 
   // --- Custom criteria management ---
+  // Custom criteria are always the evaluator's own written options now (no generic 1-5
+  // scale) — a criterion like "Refusal Behavior" is only meaningful scored against options
+  // the evaluator defines for it ("Little refusal" / "Excessive refusal"), not a number that
+  // means something different for every criterion. Existing older criteria saved with
+  // type: 'slider' still render correctly everywhere (form, report, LLM judge) — this only
+  // changes what a NEW custom criterion can be created as.
   const [isAddingCriterion, setIsAddingCriterion] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newType, setNewType] = useState<'slider' | 'custom_options'>('slider');
   const [newOptions, setNewOptions] = useState(['', '']);
 
   const handleAddCriterion = () => {
@@ -431,9 +456,10 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
       id,
       label: newLabel.trim(),
       description: newDesc.trim(),
-      type: newType,
-      value: newType === 'slider' ? 3 : (validOptions[0] ?? ''),
-      options: newType === 'custom_options' ? validOptions : undefined,
+      type: 'custom_options',
+      value: validOptions[0] ?? '',
+      details: '',
+      options: validOptions,
     };
     onEnglishScoresChange({ ...englishScores, custom_criteria: [...englishScores.custom_criteria, { ...newCriterion }] });
     onNativeScoresChange({ ...nativeScores, custom_criteria: [...nativeScores.custom_criteria, { ...newCriterion }] });
@@ -444,7 +470,6 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
     setIsAddingCriterion(false);
     setNewLabel('');
     setNewDesc('');
-    setNewType('slider');
     setNewOptions(['', '']);
   };
 
@@ -539,7 +564,11 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
           <div className="flex items-center justify-between mb-3">
             <div>
               <h4 className="text-sm font-semibold text-foreground">Custom Criteria</h4>
-              <p className="text-xs text-muted-foreground mt-0.5">Add your own evaluation criteria applied to both responses.</p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
+                Add a criterion specific to what matters in your context — something the built-in dimensions above don't cover.
+                Write your own options describing what satisfying it looks like, from best to worst; there's no generic 1–5 scale here since what "good" means is different for every criterion.
+                <span className="block mt-1 italic">Example: a criterion called "Refusal Behavior" might use the options "Little refusal", "Some refusal", "Excessive refusal".</span>
+              </p>
             </div>
             {!isAddingCriterion && (
               <button type="button" onClick={() => setIsAddingCriterion(true)}
@@ -583,45 +612,30 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
                   className="form-textarea w-full text-sm p-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Scoring Type</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-1.5 cursor-pointer text-sm">
-                    <input type="radio" checked={newType === 'slider'} onChange={() => setNewType('slider')} className="accent-primary" />
-                    1–5 Scale
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer text-sm">
-                    <input type="radio" checked={newType === 'custom_options'} onChange={() => setNewType('custom_options')} className="accent-primary" />
-                    Custom Options
-                  </label>
+                <label className="block text-xs font-medium text-foreground mb-1">Options (at least 2) — what does satisfying this criterion look like, best to worst?</label>
+                <div className="space-y-1.5">
+                  {newOptions.map((opt, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input type="text" value={opt} onChange={e => handleOptionChange(idx, e.target.value)}
+                        placeholder={idx === 0 ? 'e.g., Little refusal' : idx === 1 ? 'e.g., Excessive refusal' : `Option ${idx + 1}`}
+                        className="form-input flex-grow text-sm p-1.5 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
+                      {newOptions.length > 2 && (
+                        <button type="button" onClick={() => removeOption(idx)}
+                          className="text-xs px-1.5 py-1 rounded bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground">✕</button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" onClick={addOption}
+                    className="text-xs text-primary hover:underline mt-1">+ Add Option</button>
                 </div>
               </div>
-              {newType === 'custom_options' && (
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">Options (at least 2)</label>
-                  <div className="space-y-1.5">
-                    {newOptions.map((opt, idx) => (
-                      <div key={idx} className="flex gap-2 items-center">
-                        <input type="text" value={opt} onChange={e => handleOptionChange(idx, e.target.value)}
-                          placeholder={`Option ${idx + 1}`}
-                          className="form-input flex-grow text-sm p-1.5 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring" />
-                        {newOptions.length > 2 && (
-                          <button type="button" onClick={() => removeOption(idx)}
-                            className="text-xs px-1.5 py-1 rounded bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground">✕</button>
-                        )}
-                      </div>
-                    ))}
-                    <button type="button" onClick={addOption}
-                      className="text-xs text-primary hover:underline mt-1">+ Add Option</button>
-                  </div>
-                </div>
-              )}
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={handleAddCriterion}
-                  disabled={!newLabel.trim() || (newType === 'custom_options' && newOptions.filter(o => o.trim()).length < 2)}
+                  disabled={!newLabel.trim() || newOptions.filter(o => o.trim()).length < 2}
                   className="text-sm bg-primary text-primary-foreground px-4 py-1.5 rounded-md hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                   Add to Both Columns
                 </button>
-                <button type="button" onClick={() => { setIsAddingCriterion(false); setNewLabel(''); setNewDesc(''); setNewType('slider'); setNewOptions(['', '']); }}
+                <button type="button" onClick={() => { setIsAddingCriterion(false); setNewLabel(''); setNewDesc(''); setNewOptions(['', '']); }}
                   className="text-sm bg-muted text-muted-foreground px-4 py-1.5 rounded-md hover:bg-accent transition-colors">
                   Cancel
                 </button>
@@ -638,7 +652,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
               </div>
             )}
             <h4 className="text-md font-semibold text-center text-primary pb-2 border-b border-border mb-4">{safeTitleA}</h4>
-            <HarmAssessmentSection scores={englishScores} onScoreChange={handleScoreChange(onEnglishScoresChange, englishScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onEnglishScoresChange, englishScores)} sectionIdPrefix="english-eval" hiddenBuiltInKeys={hiddenBuiltInKeys} />
+            <HarmAssessmentSection scores={englishScores} onScoreChange={handleScoreChange(onEnglishScoresChange, englishScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onEnglishScoresChange, englishScores)} onCustomCriterionDetailsChange={handleCustomCriterionDetailsChange(onEnglishScoresChange, englishScores)} sectionIdPrefix="english-eval" hiddenBuiltInKeys={hiddenBuiltInKeys} />
           </fieldset>
 
           <fieldset disabled={isNativeResponseError} className="space-y-4 disabled:opacity-60 disabled:cursor-not-allowed">
@@ -648,7 +662,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
                 </div>
               )}
             <h4 className="text-md font-semibold text-center text-primary pb-2 border-b border-border mb-4">{safeTitleB}</h4>
-            <HarmAssessmentSection scores={nativeScores} onScoreChange={handleScoreChange(onNativeScoresChange, nativeScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onNativeScoresChange, nativeScores)} sectionIdPrefix="native-eval" hiddenBuiltInKeys={hiddenBuiltInKeys} />
+            <HarmAssessmentSection scores={nativeScores} onScoreChange={handleScoreChange(onNativeScoresChange, nativeScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onNativeScoresChange, nativeScores)} onCustomCriterionDetailsChange={handleCustomCriterionDetailsChange(onNativeScoresChange, nativeScores)} sectionIdPrefix="native-eval" hiddenBuiltInKeys={hiddenBuiltInKeys} />
           </fieldset>
         </div>
       </div>

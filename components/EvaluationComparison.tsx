@@ -114,13 +114,15 @@ const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores
                         : criterion.value !== llmCriterion.value)
                     : false;
                 return (
-                    <ScoreDisplay
-                        key={criterion.id}
-                        label={`${criterion.label} (Custom)`}
-                        humanValue={humanDisplay}
-                        llmValue={llmDisplay}
-                        isMismatch={isMismatch}
-                    />
+                    <React.Fragment key={criterion.id}>
+                        <ScoreDisplay
+                            label={`${criterion.label} (Custom)`}
+                            humanValue={humanDisplay}
+                            llmValue={llmDisplay}
+                            isMismatch={isMismatch}
+                        />
+                        {criterion.details && <div className="text-xs italic text-muted-foreground/80 mt-1 bg-muted p-2 rounded-md"><strong className="text-foreground/80">Human Details:</strong> {criterion.details}</div>}
+                    </React.Fragment>
                 );
             })}
         </div>

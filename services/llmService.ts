@@ -567,7 +567,11 @@ export const evaluateWithLlm = async (record: ReasoningEvaluationRecord): Promis
             customCriteria.map(c => {
                 const raw = parsedSide?.[toSchemaKey(c.id)];
                 const value = raw !== undefined ? raw : (c.type === 'slider' ? 3 : (c.options?.[0] ?? ''));
-                return { ...c, value };
+                // `c.details` is the HUMAN evaluator's own explanation for their grading —
+                // spreading it here would misattribute it as the LLM's. The LLM isn't asked
+                // for a per-criterion explanation (its reasoning goes into the overall
+                // `notes` field instead), so this side's details is always blank.
+                return { ...c, value, details: '' };
             });
         const fillCustomDisparities = (parsedDisparity: any): CustomCriterionDisparity[] =>
             customDisparities.map(d => {
