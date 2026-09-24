@@ -1,7 +1,39 @@
 
 import { ExtractedEntities } from '../types';
 
-// Helper function to convert Eastern Arabic numerals (used in Persian, Urdu, etc.) 
+/**
+ * Language codes (as used in constants/languages.ts AVAILABLE_NATIVE_LANGUAGES) whose
+ * scripts don't reliably use whitespace to separate words. A whitespace-based word count
+ * is meaningless for these — an entire paragraph can come back as "1 word" since there's
+ * often nothing to split on — so length is measured in characters instead, which is the
+ * standard fallback for these scripts.
+ */
+export const NO_WHITESPACE_WORD_SEGMENTATION_LANGS = ['zh-CN', 'zh-TW', 'ja', 'th', 'km', 'lo', 'my'];
+
+export type TextCountUnit = 'words' | 'characters';
+
+/** The unit a language's text length is actually measured in — see countTextUnits. */
+export const getCountUnitForLanguage = (langCode: string): TextCountUnit =>
+  NO_WHITESPACE_WORD_SEGMENTATION_LANGS.includes(langCode) ? 'characters' : 'words';
+
+/**
+ * Counts a text's length in whichever unit is meaningful for its language: whitespace-split
+ * words for space-delimited scripts, non-whitespace character count for scripts that don't
+ * use spaces between words (NO_WHITESPACE_WORD_SEGMENTATION_LANGS). Callers must display the
+ * returned `unit`, not assume it's always "words" — silently labeling a character count as a
+ * word count would misrepresent response length for the affected languages.
+ */
+export const countTextUnits = (text: string | null, langCode: string): { count: number; unit: TextCountUnit } => {
+  const unit = getCountUnitForLanguage(langCode);
+  if (!text || !text.trim()) return { count: 0, unit };
+  if (unit === 'characters') {
+    // Array.from (not .length) to count Unicode code points correctly, not UTF-16 code units.
+    return { count: Array.from(text.replace(/\s+/g, '')).length, unit };
+  }
+  return { count: text.trim().split(/\s+/).filter(Boolean).length, unit };
+};
+
+// Helper function to convert Eastern Arabic numerals (used in Persian, Urdu, etc.)
 // to Western Arabic numerals (0-9) for consistent processing.
 const normalizeDigits = (text: string): string => {
   const easternArabicNumerals: { [key: string]: string } = {

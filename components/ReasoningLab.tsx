@@ -24,7 +24,7 @@ import EvaluationForm from './EvaluationForm';
 import ReasoningDashboard from './ReasoningDashboard'; 
 import Tooltip from './Tooltip';
 import { generateLlmResponse, translateText, evaluateWithLlm } from '../services/llmService';
-import { analyzeTextResponse } from '../services/textAnalysisService';
+import { analyzeTextResponse, countTextUnits, getCountUnitForLanguage } from '../services/textAnalysisService';
 import * as db from '../services/databaseService';
 import EvaluationComparison from './EvaluationComparison';
 
@@ -36,15 +36,19 @@ const createMarkup = (markdownText: string | undefined | null) => {
     return { __html: DOMPurify.sanitize(rawMarkup as string) };
 };
 
-const ReasoningResponseCard: React.FC<{ 
+const ReasoningResponseCard: React.FC<{
   title: string;
   response: string | null;
   reasoning: string | null;
-  isLoading: boolean; 
+  isLoading: boolean;
   generationTime?: number | null;
   answerWordCount?: number;
   reasoningWordCount?: number;
-}> = ({ title, response, reasoning, isLoading, generationTime, answerWordCount, reasoningWordCount }) => (
+  // 'words' or 'characters' — see services/textAnalysisService.ts countTextUnits. Chinese,
+  // Japanese, Thai, Khmer, Lao and Burmese are measured in characters since their scripts
+  // don't use whitespace between words, so a "word" count would be meaningless for them.
+  countUnit?: 'words' | 'characters';
+}> = ({ title, response, reasoning, isLoading, generationTime, answerWordCount, reasoningWordCount, countUnit = 'words' }) => (
     <div className="bg-card text-card-foreground p-6 rounded-xl shadow-md border border-border flex-1 min-h-[300px] flex flex-col">
         <div className="flex justify-between items-start mb-3.5 border-b border-border pb-3">
             <h3 className="text-lg font-semibold text-foreground flex items-center">
@@ -58,15 +62,15 @@ const ReasoningResponseCard: React.FC<{
                     </div>
                 )}
                  {reasoningWordCount != null && reasoningWordCount > 0 && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Reasoning Word Count">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={countUnit === 'characters' ? 'Reasoning Character Count (this script has no word boundaries)' : 'Reasoning Word Count'}>
                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-primary/70"><path d="M10.75 4.75a.75.75 0 00-1.5 0v.511c-1.12.373-2.153 1.14-2.83 2.186A3.001 3.001 0 005 10c0 1.657 1.343 3 3 3s3-1.343 3-3a3.001 3.001 0 00-2.42-2.955c-.677-1.046-1.71-1.813-2.83-2.186V4.75zM8 10a2 2 0 104 0 2 2 0 00-4 0z" /></svg>
-                        <span>{reasoningWordCount} reasoning words</span>
+                        <span>{reasoningWordCount} reasoning {countUnit === 'characters' ? 'characters' : 'words'}</span>
                     </div>
                 )}
                 {answerWordCount != null && answerWordCount > 0 && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Answer Word Count">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={countUnit === 'characters' ? 'Answer Character Count (this script has no word boundaries)' : 'Answer Word Count'}>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-primary/70"><path d="M5.75 2.75a.75.75 0 00-1.5 0v14.5a.75.75 0 001.5 0V2.75z" /><path d="M9.5 2.75a.75.75 0 00-1.5 0v14.5a.75.75 0 001.5 0V2.75z" /><path d="M13.25 2.75a.75.75 0 00-1.5 0v14.5a.75.75 0 001.5 0V2.75z" /><path d="M17 6.5a.75.75 0 01.75.75v6.5a.75.75 0 01-1.5 0v-6.5A.75.75 0 0117 6.5z" /></svg>
-                        <span>{answerWordCount} answer words</span>
+                        <span>{answerWordCount} answer {countUnit === 'characters' ? 'characters' : 'words'}</span>
                     </div>
                 )}
             </div>
@@ -217,6 +221,9 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
   const [reasoningWordCountB, setReasoningWordCountB] = useState<number>(0);
   const [wordsPerSecondA, setWordsPerSecondA] = useState<number | null>(null);
   const [wordsPerSecondB, setWordsPerSecondB] = useState<number | null>(null);
+  // See services/textAnalysisService.ts countTextUnits — Column A is always English (always
+  // 'words'), Column B follows the selected native language and may be 'characters'.
+  const [nativeCountUnit, setNativeCountUnit] = useState<'words' | 'characters'>('words');
   
   // Evaluation State
   const [editingEvaluationId, setEditingEvaluationId] = useState<string | null>(null);
@@ -321,6 +328,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
   const resetResponsesAndScores = () => {
     setRawResponseA(''); setRawResponseB('');
     setResponseA(null); setResponseB(null);
+    setNativeCountUnit(getCountUnitForLanguage(selectedNativeLanguageCode));
     // Seed custom criteria/disparities from this evaluation's running template
     // (evaluationCustomCriteria) instead of starting empty — a custom criterion defined
     // once for this evaluation carries over to every new scenario. Each seeded copy gets a
@@ -403,8 +411,6 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     return { reasoning, answer };
   };
   
-  const countWords = (text: string | null) => text ? text.trim().split(/\s+/).filter(Boolean).length : 0;
-  
   const convertToVerifiable = (text: string, langCode: string = 'en'): VerifiableEntity[] => {
       if (!text) return [];
       const { 
@@ -459,8 +465,9 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
         const parsedA = parseReasoningAndAnswer(requestReasoningA ? resA : resA);
         setReasoningA(parsedA.reasoning);
         setResponseA(parsedA.answer);
-        const ansWordsA = countWords(parsedA.answer);
-        setReasoningWordCountA(countWords(parsedA.reasoning));
+        // Column A is always the English response — always word-counted, never characters.
+        const ansWordsA = countTextUnits(parsedA.answer, 'en').count;
+        setReasoningWordCountA(countTextUnits(parsedA.reasoning, 'en').count);
         setAnswerWordCountA(ansWordsA);
         setCurrentScoresA(prev => ({...prev, entities: convertToVerifiable(parsedA.answer, 'en')}));
         setWordsPerSecondA(genTimeASeconds > 0 ? ansWordsA / genTimeASeconds : 0);
@@ -469,8 +476,12 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
         const parsedB = parseReasoningAndAnswer(requestReasoningB ? resB : resB);
         setReasoningB(parsedB.reasoning);
         setResponseB(parsedB.answer);
-        const ansWordsB = countWords(parsedB.answer);
-        setReasoningWordCountB(countWords(parsedB.reasoning));
+        // Column B follows the selected native language — falls back to a character count
+        // for scripts (Chinese, Japanese, Thai, Khmer, Lao, Burmese) that don't use
+        // whitespace between words, where a word count would be meaningless.
+        setNativeCountUnit(getCountUnitForLanguage(selectedNativeLanguageCode));
+        const ansWordsB = countTextUnits(parsedB.answer, selectedNativeLanguageCode).count;
+        setReasoningWordCountB(countTextUnits(parsedB.reasoning, selectedNativeLanguageCode).count);
         setAnswerWordCountB(ansWordsB);
         setCurrentScoresB(prev => ({...prev, entities: convertToVerifiable(parsedB.answer, selectedNativeLanguageCode)}));
         setWordsPerSecondB(genTimeBSeconds > 0 ? ansWordsB / genTimeBSeconds : 0);
@@ -525,6 +536,8 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     setAnswerWordCountB(recordToEdit.answerWordCountB);
     setReasoningWordCountB(recordToEdit.reasoningWordCountB);
     setWordsPerSecondB(recordToEdit.wordsPerSecondB ?? null);
+    // Older records predate this field — 'words' is what they were always counted in.
+    setNativeCountUnit(recordToEdit.nativeCountUnit ?? 'words');
     
     // Evaluation scores and notes
     setCurrentScoresA(recordToEdit.humanScores.english);
@@ -566,6 +579,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
         reasoningWordCountA, answerWordCountA, generationTimeSecondsA: generationTimeA, wordsPerSecondA,
         titleB, promptB, reasoningRequestedB: requestReasoningB, rawResponseB, reasoningB, responseB,
         reasoningWordCountB, answerWordCountB, generationTimeSecondsB: generationTimeB, wordsPerSecondB,
+        nativeCountUnit,
         humanScores: {
             english: currentScoresA,
             native: currentScoresB,
@@ -963,7 +977,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                 <h2 className="text-xl sm:text-2xl font-bold text-center text-foreground mb-8">2. LLM Responses</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                     <ReasoningResponseCard title={titleA} response={responseA} reasoning={reasoningA} isLoading={isLoading && !responseA} generationTime={generationTimeA} answerWordCount={answerWordCountA} reasoningWordCount={reasoningWordCountA} />
-                    <ReasoningResponseCard title={titleB} response={responseB} reasoning={reasoningB} isLoading={isLoading && !responseB} generationTime={generationTimeB} answerWordCount={answerWordCountB} reasoningWordCount={reasoningWordCountB}/>
+                    <ReasoningResponseCard title={titleB} response={responseB} reasoning={reasoningB} isLoading={isLoading && !responseB} generationTime={generationTimeB} answerWordCount={answerWordCountB} reasoningWordCount={reasoningWordCountB} countUnit={nativeCountUnit}/>
                 </div>
             </section>
         )}
@@ -982,6 +996,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                     generationTimeEnglish={generationTimeA} generationTimeNative={generationTimeB}
                     wordCountEnglish={answerWordCountA} wordCountNative={answerWordCountB}
                     wordsPerSecondEnglish={wordsPerSecondA} wordsPerSecondNative={wordsPerSecondB}
+                    nativeCountUnit={nativeCountUnit}
                     hiddenBuiltInKeys={hiddenBuiltInKeys} onToggleHiddenBuiltInKey={handleToggleHiddenBuiltInKey}
                     onCriterionAddedToEvaluation={handleCriterionAddedToEvaluation}
                     onCriterionRemovedFromEvaluation={handleCriterionRemovedFromEvaluation}

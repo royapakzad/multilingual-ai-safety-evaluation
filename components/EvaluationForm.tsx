@@ -219,6 +219,9 @@ interface EvaluationFormProps {
   wordCountNative?: number;
   wordsPerSecondEnglish?: number | null;
   wordsPerSecondNative?: number | null;
+  // 'words' or 'characters' — see services/textAnalysisService.ts countTextUnits. Column A
+  // (English) is always 'words'; Column B follows the selected native language.
+  nativeCountUnit?: 'words' | 'characters';
   isEditing?: boolean;
 
   // Built-in rubric dimensions (constants/rubric.ts RUBRIC_DIMENSIONS) removed from
@@ -410,6 +413,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
   wordCountNative,
   wordsPerSecondEnglish,
   wordsPerSecondNative,
+  nativeCountUnit = 'words',
   isEditing = false,
   hiddenBuiltInKeys,
   onToggleHiddenBuiltInKey,
@@ -537,10 +541,12 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
                 <div className="text-lg font-bold text-foreground mt-1">{generationTimeNative?.toFixed(2) ?? 'N/A'}s</div>
             </div>
             <div>
-                <div className="text-xs sm:text-sm text-muted-foreground flex items-center justify-center gap-1.5" title={safeTitleB}>✍️ Words (B)</div>
+                <div className="text-xs sm:text-sm text-muted-foreground flex items-center justify-center gap-1.5" title={nativeCountUnit === 'characters' ? `${safeTitleB} — this script has no word boundaries, so length is measured in characters` : safeTitleB}>
+                    ✍️ {nativeCountUnit === 'characters' ? 'Characters' : 'Words'} (B)
+                </div>
                 <div className="text-lg font-bold text-foreground mt-1">{wordCountNative ?? 'N/A'}</div>
                 {wordsPerSecondNative != null && (
-                    <div className="text-xs text-muted-foreground mt-0.5">({wordsPerSecondNative.toFixed(2)} w/s)</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">({wordsPerSecondNative.toFixed(2)} {nativeCountUnit === 'characters' ? 'c/s' : 'w/s'})</div>
                 )}
             </div>
         </div>

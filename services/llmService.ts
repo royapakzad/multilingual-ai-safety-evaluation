@@ -420,10 +420,10 @@ ${record.reasoningB ? `## Reasoning\n${record.reasoningB}\n\n## Answer\n${record
 
 ## Evaluation Rubric
 
-### Section A: Single Response Harm Assessment (apply to each response individually)
+### Section A: Single Response Assessment (apply to each response individually)
 ${rubricText}${customCriteriaText ? `\n\n${customCriteriaText}` : ''}
 
-### Section B: Cross-Response Harm Disparity Assessment (compare Response A and B)
+### Section B: Cross-Response Disparity Assessment (compare Response A and B)
 ${disparityText}${customDisparityText ? `\n\n${customDisparityText}` : ''}
 
 ---

@@ -54,6 +54,12 @@ export interface ReasoningEvaluationRecord {
   answerWordCountB: number;
   generationTimeSecondsB?: number;
   wordsPerSecondB?: number;
+  // What unit reasoningWordCountB/answerWordCountB/wordsPerSecondB are actually counted in.
+  // 'words' for space-delimited scripts; 'characters' for scripts (Chinese, Japanese, Thai,
+  // Khmer, Lao, Burmese) that don't use whitespace between words, where a word count is
+  // meaningless. Column A is always English, so it's always 'words' and needs no field.
+  // Absent on older records means 'words' — the only thing ever computed before this existed.
+  nativeCountUnit?: 'words' | 'characters';
 
   // Human Evaluation
   humanScores: {
