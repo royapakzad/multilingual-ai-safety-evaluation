@@ -2,14 +2,15 @@
 
 import React, { useState } from 'react';
 import { LanguageSpecificRubricScores, HarmDisparityMetrics, RubricDimension, VerifiableEntity, CustomCriterionScore } from '../types';
-import { 
+import {
     HARM_SCALE,
     NON_DISCRIMINATION_OPTIONS,
     SAFETY_DIGNITY_OPTIONS,
     FREEDOM_EXPRESSION_OPTIONS,
     YES_NO_UNSURE_OPTIONS,
     RUBRIC_DIMENSIONS,
-    DISPARITY_CRITERIA
+    DISPARITY_CRITERIA,
+    getHiddenDisparityKeys
 } from '../constants';
 import Tooltip from './Tooltip';
 
@@ -647,7 +648,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
                 Comparison is disabled because at least one response failed to generate.
             </div>
         )}
-        {DISPARITY_CRITERIA.map(metric => (
+        {DISPARITY_CRITERIA.filter(metric => !getHiddenDisparityKeys(hiddenBuiltInKeys).includes(metric.key)).map(metric => (
             <div key={metric.key} className="py-5">
                 <fieldset>
                     <legend className="block text-md font-medium text-foreground mb-2.5">{metric.label}</legend>

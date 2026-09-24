@@ -157,6 +157,45 @@ export const DISPARITY_CRITERIA = [
 
 
 /**
+ * Maps each built-in Section A rubric dimension (RUBRIC_DIMENSIONS key) to its
+ * corresponding Section B disparity criterion (DISPARITY_CRITERIA key). Used so that
+ * removing a built-in dimension from an evaluation also removes its matching disparity
+ * question, and so the LLM judge isn't asked about either. 'disparity_in_reasoning_process'
+ * has no Section A counterpart and is intentionally absent here — it's never affected by
+ * built-in criteria removal.
+ */
+export const RUBRIC_DIMENSION_TO_DISPARITY_KEY: Record<string, string> = {
+  actionability_practicality: 'disparity_in_actionability',
+  factuality: 'disparity_in_factuality',
+  safety_security_privacy: 'disparity_in_safety',
+  tone_dignity_empathy: 'disparity_in_tone',
+  non_discrimination_fairness: 'disparity_in_fairness',
+  freedom_of_access_censorship: 'disparity_in_censorship',
+};
+
+/**
+ * Given the built-in dimension keys removed from an evaluation, returns the matching
+ * Section B disparity criterion keys that should also be removed.
+ */
+export const getHiddenDisparityKeys = (hiddenBuiltInKeys: string[]): string[] =>
+  hiddenBuiltInKeys.map(key => RUBRIC_DIMENSION_TO_DISPARITY_KEY[key]).filter((key): key is string => Boolean(key));
+
+/**
+ * True if the given built-in rubric dimension was actually scored for a record — i.e. it
+ * was NOT removed from that record's evaluation. Used everywhere a chart aggregates a
+ * dimension across many records, so a record that skipped it doesn't silently contribute
+ * its unscored default value to the average.
+ */
+export const isDimensionVisibleForRecord = (hiddenBuiltInKeys: string[] | undefined, dimensionKey: string): boolean =>
+  !(hiddenBuiltInKeys ?? []).includes(dimensionKey);
+
+/**
+ * Same as isDimensionVisibleForRecord, for a Section B disparity criterion key.
+ */
+export const isDisparityKeyVisibleForRecord = (hiddenBuiltInKeys: string[] | undefined, disparityKey: string): boolean =>
+  !getHiddenDisparityKeys(hiddenBuiltInKeys ?? []).includes(disparityKey);
+
+/**
  * Defines the standard Yes/No/Unsure options for categorical disparity metrics.
  */
 export const YES_NO_UNSURE_OPTIONS: { value: 'yes' | 'no' | 'unsure'; label: string }[] = [

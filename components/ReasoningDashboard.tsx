@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ReasoningEvaluationRecord, LanguageSpecificRubricScores, RubricDimension, LlmRubricScores } from '../types';
-import { DISPARITY_CRITERIA, RUBRIC_DIMENSIONS, AVAILABLE_MODELS } from '../constants';
+import { DISPARITY_CRITERIA, RUBRIC_DIMENSIONS, AVAILABLE_MODELS, isDimensionVisibleForRecord, isDisparityKeyVisibleForRecord } from '../constants';
 import LoadingSpinner from './LoadingSpinner';
 import Tooltip from './Tooltip';
 import html2canvas from 'html2canvas';
@@ -723,18 +723,23 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
 
         const sumA = Array(dimensionData.length).fill(0);
         const sumB = Array(dimensionData.length).fill(0);
+        // Per-dimension count — a record that removed this dimension from its evaluation
+        // must not count toward its average (or its denominator).
+        const countPerDim = Array(dimensionData.length).fill(0);
 
         filteredEvaluations.forEach(ev => {
             if (ev.humanScores?.english && ev.humanScores?.native) {
                 dimensionData.forEach((dim, i) => {
+                    if (!isDimensionVisibleForRecord(ev.hiddenBuiltInKeys, dim.key)) return;
                     sumA[i] += getNumericScore(dim.key, ev.humanScores.english);
                     sumB[i] += getNumericScore(dim.key, ev.humanScores.native);
+                    countPerDim[i]++;
                 });
             }
         });
 
-        const avgScoresA = sumA.map(v => v / filteredEvaluations.length);
-        const avgScoresB = sumB.map(v => v / filteredEvaluations.length);
+        const avgScoresA = sumA.map((v, i) => countPerDim[i] > 0 ? v / countPerDim[i] : 0);
+        const avgScoresB = sumB.map((v, i) => countPerDim[i] > 0 ? v / countPerDim[i] : 0);
 
         return {
             dimensionData,
@@ -753,19 +758,22 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
 
         const sumLlmA = dimensions.map(() => 0);
         const sumLlmB = dimensions.map(() => 0);
+        const countPerDim = dimensions.map(() => 0);
 
         llmCompletedEvals.forEach(ev => {
             if (ev.llmScores?.english && ev.llmScores?.native) {
                 dimensions.forEach((dim, i) => {
+                    if (!isDimensionVisibleForRecord(ev.hiddenBuiltInKeys, dim)) return;
                     sumLlmA[i] += getNumericScore(dim as any, ev.llmScores.english);
                     sumLlmB[i] += getNumericScore(dim as any, ev.llmScores.native);
+                    countPerDim[i]++;
                 });
             }
         });
 
         const count = llmCompletedEvals.length;
-        const avgLlmA = sumLlmA.map(v => v / count);
-        const avgLlmB = sumLlmB.map(v => v / count);
+        const avgLlmA = sumLlmA.map((v, i) => countPerDim[i] > 0 ? v / countPerDim[i] : 0);
+        const avgLlmB = sumLlmB.map((v, i) => countPerDim[i] > 0 ? v / countPerDim[i] : 0);
 
         return {
             datasets: [
@@ -777,8 +785,11 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
     }, [filteredEvaluations]);
 
     // FIX: Refactor to fix 'unknown' key type issue by removing problematic `in` check.
-    const calculateOverallScore = (scores: LanguageSpecificRubricScores | LlmRubricScores): number => {
-        const dimensionKeys = RUBRIC_DIMENSIONS.map(d => d.key);
+    // hiddenBuiltInKeys scopes the average to only the dimensions actually active for the
+    // record these `scores` came from — a removed dimension's unscored default must not
+    // pull the "overall score" toward it.
+    const calculateOverallScore = (scores: LanguageSpecificRubricScores | LlmRubricScores, hiddenBuiltInKeys: string[] = []): number => {
+        const dimensionKeys = RUBRIC_DIMENSIONS.filter(d => isDimensionVisibleForRecord(hiddenBuiltInKeys, d.key)).map(d => d.key);
         if (dimensionKeys.length === 0) return 0;
         const totalScore = dimensionKeys.reduce((acc, key) => {
             // The `key` from RUBRIC_DIMENSIONS is guaranteed to be a key of the scores object.
@@ -802,9 +813,9 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
             }
             
             const data = contextMap.get(context)!;
-            const engScore = calculateOverallScore(ev.humanScores.english);
-            const natScore = calculateOverallScore(ev.humanScores.native);
-            
+            const engScore = calculateOverallScore(ev.humanScores.english, ev.hiddenBuiltInKeys);
+            const natScore = calculateOverallScore(ev.humanScores.native, ev.hiddenBuiltInKeys);
+
             data.englishScores.push(engScore);
             data.nativeScores.push(natScore);
             data.disparities.push(Math.abs(engScore - natScore));
@@ -852,9 +863,9 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
             }
             
             const data = contextMap.get(context)!;
-            const engScore = calculateOverallScore(ev.llmScores.english);
-            const natScore = calculateOverallScore(ev.llmScores.native);
-            
+            const engScore = calculateOverallScore(ev.llmScores.english, ev.hiddenBuiltInKeys);
+            const natScore = calculateOverallScore(ev.llmScores.native, ev.hiddenBuiltInKeys);
+
             data.englishScores.push(engScore);
             data.nativeScores.push(natScore);
             data.disparities.push(Math.abs(engScore - natScore));
@@ -898,6 +909,7 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
             const langData = dataByLang.get(langName)!;
 
             dimensions.forEach(dim => {
+                if (!isDimensionVisibleForRecord(ev.hiddenBuiltInKeys, dim.key)) return;
                 if (!langData[dim.key]) {
                     langData[dim.key] = { sumDisparity: 0, sumScoreA: 0, sumScoreB: 0, count: 0 };
                 }
@@ -941,20 +953,22 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
 
         const humanData = DISPARITY_CRITERIA.map(crit => {
             const counts = { yes: 0, no: 0, unsure: 0 };
-            filteredEvaluations.forEach(ev => {
+            const applicableEvals = filteredEvaluations.filter(ev => isDisparityKeyVisibleForRecord(ev.hiddenBuiltInKeys, crit.key));
+            applicableEvals.forEach(ev => {
                 const value = ev.humanScores.disparity[crit.key as keyof typeof ev.humanScores.disparity];
                 if (value === 'yes') counts.yes++; else if (value === 'no') counts.no++; else counts.unsure++;
             });
-            return { ...crit, ...counts, total: filteredEvaluations.length };
+            return { ...crit, ...counts, total: applicableEvals.length };
         });
 
         const llmData = llmEvalCount > 0 ? DISPARITY_CRITERIA.map(crit => {
             const counts = { yes: 0, no: 0, unsure: 0 };
-            llmEvaluable.forEach(ev => {
+            const applicableEvals = llmEvaluable.filter(ev => isDisparityKeyVisibleForRecord(ev.hiddenBuiltInKeys, crit.key));
+            applicableEvals.forEach(ev => {
                 const value = ev.llmScores!.disparity[crit.key as keyof typeof ev.llmScores.disparity];
                 if (value === 'yes') counts.yes++; else if (value === 'no') counts.no++; else counts.unsure++;
             });
-            return { ...crit, ...counts, total: llmEvalCount };
+            return { ...crit, ...counts, total: applicableEvals.length };
         }) : null;
 
         return { human: humanData, llm: llmData, count: filteredEvaluations.length, llmCount: llmEvalCount };
@@ -972,12 +986,17 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
 
         const agreementData = RUBRIC_DIMENSIONS.map(dim => {
             let agreements = 0;
-            completedEvals.forEach(ev => {
+            // A dimension hidden for a record was never asked of the human OR the LLM — both
+            // sides carry the same placeholder default there, which would register as a
+            // trivial, meaningless 100% "agreement". Scope both the count and the
+            // denominator to only the evaluations that actually scored this dimension.
+            const applicableEvals = completedEvals.filter(ev => isDimensionVisibleForRecord(ev.hiddenBuiltInKeys, dim.key));
+            applicableEvals.forEach(ev => {
                 const humanScoreA = getNumericScore(dim.key, ev.humanScores.english);
                 const llmScoreA = getNumericScore(dim.key, ev.llmScores!.english);
                 const humanScoreB = getNumericScore(dim.key, ev.humanScores.native);
                 const llmScoreB = getNumericScore(dim.key, ev.llmScores!.native);
-                
+
                 if (dim.isSlider) {
                     if (Math.abs(humanScoreA - llmScoreA) <= 1) agreements++;
                     if (Math.abs(humanScoreB - llmScoreB) <= 1) agreements++;
@@ -986,17 +1005,20 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                     if (humanScoreB === llmScoreB) agreements++;
                 }
             });
-            return { label: getShortLabel(dim.label), agreement: (agreements / (completedEvals.length * 2)) * 100 };
+            const denominator = applicableEvals.length * 2;
+            return { label: getShortLabel(dim.label), agreement: denominator > 0 ? (agreements / denominator) * 100 : 0 };
         });
-        
+
         const disparityAgreementData = DISPARITY_CRITERIA.map(crit => {
             let agreements = 0;
-            completedEvals.forEach(ev => {
+            const applicableEvals = completedEvals.filter(ev => isDisparityKeyVisibleForRecord(ev.hiddenBuiltInKeys, crit.key));
+            applicableEvals.forEach(ev => {
                 const humanVal = ev.humanScores.disparity[crit.key as keyof typeof ev.humanScores.disparity];
-                const llmVal = ev.llmScores!.disparity[crit.key as keyof typeof ev.llmScores!.disparity];
+                const llmDisparity = ev.llmScores?.disparity;
+                const llmVal = llmDisparity ? llmDisparity[crit.key as keyof typeof llmDisparity] : undefined;
                 if (humanVal === llmVal) agreements++;
             });
-            return { label: crit.label, agreement: (agreements / completedEvals.length) * 100 };
+            return { label: crit.label, agreement: applicableEvals.length > 0 ? (agreements / applicableEvals.length) * 100 : 0 };
         });
 
         return {
@@ -1038,20 +1060,29 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
 
             // FIX: Explicitly type the records to prevent Object.fromEntries from inferring `unknown` values, which causes downstream errors.
             const scoreSums: Record<string, number> = Object.fromEntries(dimensionKeys.map(k => [k, 0]));
+            // A dimension removed from some evaluations in this model's group must not use
+            // the model's total record count as its denominator — track how many records
+            // actually scored each dimension/criterion instead.
+            const scoreCounts: Record<string, number> = Object.fromEntries(dimensionKeys.map(k => [k, 0]));
             const disparityCounts: Record<string, number> = Object.fromEntries(disparityKeys.map(k => [k, 0]));
+            const disparityApplicableCounts: Record<string, number> = Object.fromEntries(disparityKeys.map(k => [k, 0]));
             const perfMetrics = { totalGenTimeA: 0, totalGenTimeB: 0, totalAnswerWordsA: 0, totalAnswerWordsB: 0 };
-            
+
             evals.forEach(ev => {
                 // Quality Scores
                 dimensionKeys.forEach(key => {
+                    if (!isDimensionVisibleForRecord(ev.hiddenBuiltInKeys, key as string)) return;
                     // FIX: Removed unnecessary `as any` type assertion. The `key` type is correct.
                     const scoreA = getNumericScore(key, ev.humanScores.english);
                     const scoreB = getNumericScore(key, ev.humanScores.native);
                     // FIX: Cast `key` to string to resolve index signature error.
                     scoreSums[key as string] += (scoreA + scoreB) / 2;
+                    scoreCounts[key as string]++;
                 });
                 // Disparity Scores
                 disparityKeys.forEach(key => {
+                    if (!isDisparityKeyVisibleForRecord(ev.hiddenBuiltInKeys, key as string)) return;
+                    disparityApplicableCounts[key as string]++;
                     // FIX: Removed unnecessary type assertion. `as const` on DISPARITY_CRITERIA ensures `key` is a valid key.
                     // FIX: Cast `key` to a valid key type to resolve index signature error.
                     if (ev.humanScores.disparity[key as keyof typeof ev.humanScores.disparity] === 'yes') {
@@ -1064,11 +1095,11 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                 perfMetrics.totalAnswerWordsA += (ev.answerWordCountA ?? 0);
                 perfMetrics.totalAnswerWordsB += (ev.answerWordCountB ?? 0);
             });
-            
+
             results[model] = {
                 count,
-                avgScores: Object.fromEntries(dimensionKeys.map(k => [k, scoreSums[k as string] / count])),
-                disparityPercentages: Object.fromEntries(disparityKeys.map(k => [k, (disparityCounts[k as string] / count) * 100])),
+                avgScores: Object.fromEntries(dimensionKeys.map(k => [k, scoreCounts[k as string] > 0 ? scoreSums[k as string] / scoreCounts[k as string] : 0])),
+                disparityPercentages: Object.fromEntries(disparityKeys.map(k => [k, disparityApplicableCounts[k as string] > 0 ? (disparityCounts[k as string] / disparityApplicableCounts[k as string]) * 100 : 0])),
                 avgGenTimeA: perfMetrics.totalGenTimeA / count,
                 avgGenTimeB: perfMetrics.totalGenTimeB / count,
                 avgAnswerWordsA: perfMetrics.totalAnswerWordsA / count,

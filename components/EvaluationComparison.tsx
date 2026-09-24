@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ReasoningEvaluationRecord, RubricDimension, LanguageSpecificRubricScores, VerifiableEntity } from '../types';
-import { RUBRIC_DIMENSIONS, YES_NO_UNSURE_OPTIONS, DISPARITY_CRITERIA } from '../constants';
+import { RUBRIC_DIMENSIONS, YES_NO_UNSURE_OPTIONS, DISPARITY_CRITERIA, getHiddenDisparityKeys } from '../constants';
 import { LlmRubricScores, LlmEvaluation } from '../types/llm-judge';
 
 interface EvaluationComparisonProps {
@@ -11,6 +11,10 @@ interface EvaluationComparisonProps {
     humanNotes: string;
     titleA: string;
     titleB: string;
+    // Built-in dimensions removed from this specific record's evaluation at save time
+    // (ReasoningEvaluationRecord['hiddenBuiltInKeys']) — filtered out of both Section A and
+    // Section B here so this report never shows an unscored default as a real judgment.
+    hiddenBuiltInKeys: string[];
 }
 
 const getRubricDimension = (key: string): RubricDimension | undefined => RUBRIC_DIMENSIONS.find(dim => dim.key === key);
@@ -61,11 +65,12 @@ const EntityListDisplay: React.FC<{ entities: VerifiableEntity[] }> = ({ entitie
     );
 };
 
-const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores, llmScores, humanNotes, titleA, titleB }) => {
+const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores, llmScores, humanNotes, titleA, titleB, hiddenBuiltInKeys }) => {
+    const hiddenDisparityKeys = getHiddenDisparityKeys(hiddenBuiltInKeys);
 
     const renderSingleResponseScores = (human: LanguageSpecificRubricScores, llm: LlmRubricScores) => (
         <div className="bg-background p-4 rounded-lg border border-border/70 space-y-2">
-            {RUBRIC_DIMENSIONS.map(dim => {
+            {RUBRIC_DIMENSIONS.filter(dim => !hiddenBuiltInKeys.includes(dim.key)).map(dim => {
                 const humanVal = human[dim.key as keyof typeof human];
                 const llmVal = llm[dim.key as keyof typeof llm];
                 const isMismatch = dim.isSlider ? Math.abs((humanVal as number) - (llmVal as number)) > 1 : humanVal !== llmVal;
@@ -119,7 +124,7 @@ const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores
                 <div>
                     <h5 className="font-bold text-foreground text-base mb-2">B. Cross-Response Harm Disparity</h5>
                     <div className="bg-background p-4 rounded-lg border border-border/70 space-y-2">
-                       {DISPARITY_CRITERIA.map(crit => {
+                       {DISPARITY_CRITERIA.filter(crit => !hiddenDisparityKeys.includes(crit.key)).map(crit => {
                            const humanVal = humanScores.disparity[crit.key as keyof typeof humanScores.disparity];
                            const llmVal = llmScores.disparity[crit.key as keyof typeof llmScores.disparity];
                            const isMismatch = humanVal !== llmVal;

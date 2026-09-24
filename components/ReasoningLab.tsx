@@ -504,6 +504,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
         userEmail: existingRecord?.userEmail || currentUser.email, // Preserve original evaluator email
         labType: 'reasoning',
         evaluationName,
+        hiddenBuiltInKeys,
         scenarioId, scenarioCategory,
         scenarioContext: currentScenarioContext,
         languagePair: `English - ${langInfo?.name || "N/A"}`,
@@ -1058,7 +1059,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                                       <div><h4 className="font-semibold text-foreground/90 mb-1.5 text-base">{ev.titleB} Prompt:</h4><p className="italic text-muted-foreground bg-muted p-3 rounded-md text-xs max-h-32 overflow-y-auto custom-scrollbar" tabIndex={0}>{ev.promptB}</p></div>
                                   </div>
                                   {ev.llmEvaluationStatus === 'completed' && ev.llmScores ? (
-                                      <EvaluationComparison humanScores={ev.humanScores} llmScores={ev.llmScores} humanNotes={ev.notes} titleA={ev.titleA} titleB={ev.titleB} />
+                                      <EvaluationComparison humanScores={ev.humanScores} llmScores={ev.llmScores} humanNotes={ev.notes} titleA={ev.titleA} titleB={ev.titleB} hiddenBuiltInKeys={ev.hiddenBuiltInKeys ?? []} />
                                   ) : (
                                      <div className="text-center py-8 bg-muted rounded-lg">
                                           <p className="text-muted-foreground">Evaluation comparison will be shown here once the LLM evaluation is complete.</p>
@@ -1124,12 +1125,13 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                         </div>
                         
                         {ev.llmEvaluationStatus === 'completed' && ev.llmScores ? (
-                            <EvaluationComparison 
+                            <EvaluationComparison
                                 humanScores={ev.humanScores}
                                 llmScores={ev.llmScores}
                                 humanNotes={ev.notes}
                                 titleA={ev.titleA}
                                 titleB={ev.titleB}
+                                hiddenBuiltInKeys={ev.hiddenBuiltInKeys ?? []}
                             />
                         ) : (
                            <div className="text-center py-8 bg-muted rounded-lg">

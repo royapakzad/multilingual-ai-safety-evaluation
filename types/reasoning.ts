@@ -16,6 +16,14 @@ export interface ReasoningEvaluationRecord {
   // Named evaluation session this record belongs to
   evaluationName?: string;
 
+  // Built-in rubric dimensions (RUBRIC_DIMENSIONS keys) that were removed from this
+  // evaluation's scoring form at the time this record was saved. Snapshotted rather than
+  // looked up live, so a report always reflects what was actually asked of the evaluator
+  // (and the LLM judge) for this specific record — not whatever the evaluation's criteria
+  // configuration happens to be when the report is later viewed. Absent/undefined means
+  // none were hidden (the full built-in set applied), which keeps older records valid.
+  hiddenBuiltInKeys?: string[];
+
   // Scenario & Model Info
   scenarioId: string;
   scenarioCategory: string;
