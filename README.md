@@ -114,12 +114,63 @@ The application features a two-level access system:
 
 *   **Admin Access:**
     *   **Permissions:** Admins can view all evaluations submitted by all users and download a complete CSV of all data from the platform.
-    *   **Login:** Admin credentials are set via environment variables. For local development, they can be set in `env.js`. For production (e.g., Vercel), they must be set in your project's environment variable settings (see Section 6 below).
+    *   **Login:** Admin credentials are set via environment variables. For local development, they can be set in `env.js`. For production (e.g., Vercel), they must be set in your project's environment variable settings (see Section 7 below).
 
 *   **Evaluator Access:**
     *   **Permissions:** By admins, evaluators can conduct experiments, submit evaluations, view only their own past evaluations, and download a CSV of their own data.
 
-## 6. Configuration 
+## 6. Running Your Own Evaluation
+
+This section is for evaluators — anyone who wants to test a model in their own context, not for developers setting up the app.
+
+### Getting an account
+
+There's no open sign-up. To get access:
+
+1. On the login screen, click **Request Access**.
+2. Enter your email and a short note on what you plan to evaluate.
+3. An admin reviews and approves the request, and sends you a temporary password.
+4. Log in with it, then set your own password under **Change Password** in the header.
+
+### Starting an evaluation
+
+After logging in, you'll be asked to name your evaluation. This name keeps your results separate from everyone else's:
+
+- Type a new name and click **Enter Lab** to start fresh.
+- Or click an existing name to continue it — your scenarios, criteria, and results are all saved under that name.
+
+Everything below happens inside whichever evaluation you're currently in.
+
+### Adding scenarios
+
+Choose a model, then either:
+
+- **Write one scenario at a time** — enter your own prompt directly, or
+- **Upload a CSV** to load many scenarios at once.
+
+The CSV needs exactly two columns:
+
+| Column | Content |
+|---|---|
+| `context` | A short label for the scenario (e.g. "Fact-check - climate claim") |
+| `prompt` | The prompt to send to the model |
+
+Rules:
+- The first row is the header, with exactly these column names (order doesn't matter).
+- **No commas inside `context` or `prompt` text** — the upload can't handle a comma inside a field, and it will split the row into the wrong columns. Use a dash or semicolon instead.
+- Every row after the header is one scenario.
+
+### Choosing what to score
+
+Each scenario is scored against a rubric: six built-in dimensions (Actionability, Factuality, Safety, Tone, Non-Discrimination, Censorship/Refusal), plus anything you add.
+
+- **Remove a built-in dimension** that doesn't apply to your context — click **Remove** next to it in the scoring form. Click **Restore** to bring it back.
+- **Add your own criterion** — click **+ Add Criterion**, name it, describe it, and write your own answer options from best to worst (custom criteria are always your own wording, not a generic 1-5 scale).
+- Define a custom criterion once and it carries over to every new scenario in that evaluation automatically. Remove it and future scenarios stop getting it too.
+
+These choices only apply to the evaluation you're in — starting a new one gives you the built-in six again, with no custom criteria until you add them there.
+
+## 7. Configuration 
 
 This application requires configuration for both API keys and administrator credentials. This is handled via an `env.js` file for local development and **environment variables** for production deployments (e.g., Vercel).
 
@@ -143,6 +194,9 @@ This application requires configuration for both API keys and administrator cred
    // For OpenRouter
      export const OPENROUTER_API_KEY= "YOUR_OPENROUTER_API_KEY_HERE";
 
+    // For Hugging Face Inference Providers (used for open-weights models like SwissAI's Apertus)
+    export const HUGGINGFACE_API_KEY = "YOUR_HUGGINGFACE_API_KEY_HERE";
+
     // --- Admin Credentials ---
     // For local development, you can set the admin user here.
     // In production, these values are ignored; use environment variables instead.
@@ -158,11 +212,12 @@ To deploy your application safely, you **must** set the following environment va
 *   `API_KEY`: Your Google Gemini API Key.
 *   `OPENAI_API_KEY`: Your OpenAI API Key.
 *   `MISTRAL_API_KEY`: Your Mistral API Key.
+*   `HUGGINGFACE_API_KEY`: Your Hugging Face token (needs "Make calls to Inference Providers" permission) for open-weights models like Apertus.
 *   `ADMIN_EMAIL`: The email address for the admin user.
 *   `ADMIN_PASSWORD`: The password for the admin user.
 
 The application is built to automatically use these environment variables when deployed, ensuring your secrets are never exposed in your codebase.
-## 7. Codebase Philosophy & Best Practices
+## 8. Codebase Philosophy & Best Practices
 
 This project is structured for modularity and maintainability. Key principles for developers include:
 
@@ -175,7 +230,7 @@ This project is structured for modularity and maintainability. Key principles fo
 *   **Clean Imports:** The `index.ts` file in both `types/` and `constants/` allows for clean, simple imports (e.g., `import { User } from './types';`).
 *   **Clear Commenting:** Add concise, professional comments to explain the *why* behind complex code, not just the *what*.
 
-## 8. File System Overview
+## 9. File System Overview
 
 ```
 llm-safety-lab/
@@ -192,7 +247,7 @@ llm-safety-lab/
 ├── README.md           # This file
 └── llmtaskscompleted.md # Log of completed work
 ```
-## 9. Credits & Acknowledgments
+## 10. Credits & Acknowledgments
 
 This project was developed as part of the Mozilla Foundation Trustworthy AI Program, under the Senior Fellowship of Roya Pakzad.
 Special thanks to all contributors, evaluators, and civil society partners who participated in testing and evaluation (to be updated with the full list).
