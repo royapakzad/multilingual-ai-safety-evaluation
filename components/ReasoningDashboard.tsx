@@ -1480,7 +1480,7 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                     </div>
 
                     <DashboardCard 
-                        title="Harm Assessment Scores (Human vs. LLM)" 
+                        title="Assessment Scores (Human vs. LLM)" 
                         subtitle={`Average scores across core rubric dimensions (1=Worst, 5=Best). Human scores based on ${filteredEvaluations.length} evals. LLM scores based on ${llmRadarChartData?.evalCount || 0} completed evals. Click a label for details.`}
                     >
                         <div className="flex items-center justify-center pt-2">

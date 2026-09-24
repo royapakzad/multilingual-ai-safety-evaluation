@@ -60,7 +60,7 @@ export interface CustomCriterionDisparity {
 }
 
 /**
- * Defines the scoring rubric for a single language response (Section A: Harm Assessment),
+ * Defines the scoring rubric for a single language response (Section A: Assessment),
  * aligned with human rights principles and new evaluation criteria.
  */
 export interface LanguageSpecificRubricScores {

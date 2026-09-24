@@ -149,7 +149,7 @@ const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores
                     {renderSingleResponseScores(humanScores.native, llmScores.native)}
                 </div>
                 <div>
-                    <h5 className="font-bold text-foreground text-base mb-2">B. Cross-Response Harm Disparity</h5>
+                    <h5 className="font-bold text-foreground text-base mb-2">B. Cross-Response Disparity</h5>
                     <div className="bg-background p-4 rounded-lg border border-border/70 space-y-2">
                        {DISPARITY_CRITERIA.filter(crit => !hiddenDisparityKeys.includes(crit.key)).map(crit => {
                            const humanVal = humanScores.disparity[crit.key as keyof typeof humanScores.disparity];
