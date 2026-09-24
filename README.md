@@ -1,4 +1,3 @@
-
 # Multilingual AI Safety Evaluation Laboratory
 
 #### 👩🏻‍💻 Web Platform for Evaluators:  [Multilingual LLM Safety Evaluation Lab](https://ai-safety-evaluation-lab.vercel.app/)
@@ -100,12 +99,6 @@ The **Multilingual Evaluation Lab** is a **platform** that helps governments, in
 - **Evaluation-to-Benchmarking Pipeline:** Integrate evaluator contributions directly into a frozen benchmark, enabling reproducible tests and standardized comparisons across models and languages.  
 - **Continuous Benchmark Updates:** Establish transparent versioning (v0.1, v0.2…) so the platform evolves as new languages, domains, and harms are added.   
 
-### Governance Evaluation
-- **Corporate Policy & Transparency Analysis:** Examine companies’ stated AI principles, privacy policies, terms of service, and compliance frameworks against observed model behavior.  
-- **Sanctions & Regulatory Compliance:** Conduct nuanced assessments of how companies interpret and enforce international sanctions, export controls, and local regulatory obligations. This includes examining risks of over-enforcement, chilling effects on access, and broader digital rights implications for users in sanctioned or marginalized regions.  
-- **Business Model & Incentives:** Assess how monetization strategies, data practices, and product roadmaps affect safety, accessibility, and equity outcomes.  
-- **Contextual Vulnerability Assessment:** Map risks for specific user groups and country contexts, linking technical evaluation findings to broader societal impacts.  
- 
 ---
 
 ## 5. Access Control & Login
