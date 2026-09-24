@@ -6,16 +6,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { 
-    User, ReasoningEvaluationRecord, LLMModelType, 
-    LanguageSpecificRubricScores, HarmDisparityMetrics, 
-    VerifiableEntity, RubricDimension, CsvScenario, LlmEvaluation
+import {
+    User, ReasoningEvaluationRecord, LLMModelType,
+    LanguageSpecificRubricScores, HarmDisparityMetrics,
+    VerifiableEntity, RubricDimension, CsvScenario, LlmEvaluation, CustomCriterionScore
 } from '../types';
-import { 
+import {
     EVALUATIONS_KEY, AVAILABLE_MODELS, REASONING_SYSTEM_INSTRUCTION,
     INITIAL_LANGUAGE_SPECIFIC_RUBRIC_SCORES, INITIAL_HARM_DISPARITY_METRICS,
     AVAILABLE_NATIVE_LANGUAGES, RUBRIC_DIMENSIONS, HARM_SCALE, YES_NO_UNSURE_OPTIONS, DISPARITY_CRITERIA,
-    HIDDEN_BUILT_IN_CRITERIA_KEY_PREFIX
+    HIDDEN_BUILT_IN_CRITERIA_KEY_PREFIX, CUSTOM_CRITERIA_TEMPLATE_KEY_PREFIX
 } from '../constants';
 import * as config from '../env.js';
 import LoadingSpinner from './LoadingSpinner';
@@ -256,6 +256,47 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     });
   };
 
+  // Running template of custom criteria for THIS named evaluation — definitions only
+  // (id/label/description/options), no scored value. New scenarios are seeded from this
+  // (see resetResponsesAndScores below) instead of starting empty, so a custom criterion
+  // only has to be defined once per evaluation, not once per scenario.
+  const [evaluationCustomCriteria, setEvaluationCustomCriteria] = useState<CustomCriterionScore[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`${CUSTOM_CRITERIA_TEMPLATE_KEY_PREFIX}${evaluationName}`);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setEvaluationCustomCriteria(Array.isArray(parsed) ? parsed : []);
+    } catch (e) {
+      console.warn('Failed to load this evaluation\'s custom criteria template from localStorage:', e);
+      setEvaluationCustomCriteria([]);
+    }
+  }, [evaluationName]);
+
+  const handleCriterionAddedToEvaluation = (criterion: CustomCriterionScore) => {
+    setEvaluationCustomCriteria(prev => {
+      const next = [...prev, criterion];
+      try {
+        localStorage.setItem(`${CUSTOM_CRITERIA_TEMPLATE_KEY_PREFIX}${evaluationName}`, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save this evaluation\'s custom criteria template to localStorage:', e);
+      }
+      return next;
+    });
+  };
+
+  const handleCriterionRemovedFromEvaluation = (id: string) => {
+    setEvaluationCustomCriteria(prev => {
+      const next = prev.filter(c => c.id !== id);
+      try {
+        localStorage.setItem(`${CUSTOM_CRITERIA_TEMPLATE_KEY_PREFIX}${evaluationName}`, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save this evaluation\'s custom criteria template to localStorage:', e);
+      }
+      return next;
+    });
+  };
+
   const translationDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initial data load
@@ -280,9 +321,19 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
   const resetResponsesAndScores = () => {
     setRawResponseA(''); setRawResponseB('');
     setResponseA(null); setResponseB(null);
-    setCurrentScoresA({...INITIAL_LANGUAGE_SPECIFIC_RUBRIC_SCORES});
-    setCurrentScoresB({...INITIAL_LANGUAGE_SPECIFIC_RUBRIC_SCORES});
-    setCurrentHarmDisparityMetrics({...INITIAL_HARM_DISPARITY_METRICS});
+    // Seed custom criteria/disparities from this evaluation's running template
+    // (evaluationCustomCriteria) instead of starting empty — a custom criterion defined
+    // once for this evaluation carries over to every new scenario. Each seeded copy gets a
+    // fresh, unscored value/details; the definition itself (id/label/description/options)
+    // is unchanged, so it still groups correctly with earlier entries on the dashboard.
+    const seedCustomCriteria = (): CustomCriterionScore[] =>
+      evaluationCustomCriteria.map(c => ({ ...c, value: c.options?.[0] ?? '', details: '' }));
+    setCurrentScoresA({ ...INITIAL_LANGUAGE_SPECIFIC_RUBRIC_SCORES, custom_criteria: seedCustomCriteria() });
+    setCurrentScoresB({ ...INITIAL_LANGUAGE_SPECIFIC_RUBRIC_SCORES, custom_criteria: seedCustomCriteria() });
+    setCurrentHarmDisparityMetrics({
+      ...INITIAL_HARM_DISPARITY_METRICS,
+      custom_disparities: evaluationCustomCriteria.map(c => ({ id: c.id, label: c.label, value: 'unsure', details: '' })),
+    });
     setEvaluationNotes('');
     setGenerationTimeA(null); setGenerationTimeB(null);
     setAnswerWordCountA(0); setAnswerWordCountB(0);
@@ -932,6 +983,8 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                     wordCountEnglish={answerWordCountA} wordCountNative={answerWordCountB}
                     wordsPerSecondEnglish={wordsPerSecondA} wordsPerSecondNative={wordsPerSecondB}
                     hiddenBuiltInKeys={hiddenBuiltInKeys} onToggleHiddenBuiltInKey={handleToggleHiddenBuiltInKey}
+                    onCriterionAddedToEvaluation={handleCriterionAddedToEvaluation}
+                    onCriterionRemovedFromEvaluation={handleCriterionRemovedFromEvaluation}
                 />
             </section>
         )}

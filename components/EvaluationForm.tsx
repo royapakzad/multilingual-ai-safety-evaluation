@@ -225,6 +225,12 @@ interface EvaluationFormProps {
   // this evaluation, and the handler to toggle one in or out.
   hiddenBuiltInKeys: string[];
   onToggleHiddenBuiltInKey: (key: string, hide: boolean) => void;
+
+  // Called after a custom criterion is added/removed so the parent can update this
+  // evaluation's running template — new scenarios are seeded from it, so a criterion only
+  // has to be defined once per evaluation, not once per scenario.
+  onCriterionAddedToEvaluation: (criterion: CustomCriterionScore) => void;
+  onCriterionRemovedFromEvaluation: (id: string) => void;
 }
 
 const HarmAssessmentSection: React.FC<{
@@ -407,6 +413,8 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
   isEditing = false,
   hiddenBuiltInKeys,
   onToggleHiddenBuiltInKey,
+  onCriterionAddedToEvaluation,
+  onCriterionRemovedFromEvaluation,
 }) => {
 
   const handleScoreChange = (setter: Function, currentScores: LanguageSpecificRubricScores) =>
@@ -467,6 +475,9 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
     // way to flag an English-vs-native difference the way built-in dimensions do.
     const newDisparity: CustomCriterionDisparity = { id, label: newCriterion.label, value: 'unsure', details: '' };
     onHarmDisparityMetricsChange({ ...harmDisparityMetrics, custom_disparities: [...(harmDisparityMetrics.custom_disparities ?? []), newDisparity] });
+    // Add it to this evaluation's running template too, so the next scenario starts with
+    // it already there instead of having to be recreated.
+    onCriterionAddedToEvaluation(newCriterion);
     setIsAddingCriterion(false);
     setNewLabel('');
     setNewDesc('');
@@ -477,6 +488,9 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
     onEnglishScoresChange({ ...englishScores, custom_criteria: englishScores.custom_criteria.filter(c => c.id !== id) });
     onNativeScoresChange({ ...nativeScores, custom_criteria: nativeScores.custom_criteria.filter(c => c.id !== id) });
     onHarmDisparityMetricsChange({ ...harmDisparityMetrics, custom_disparities: (harmDisparityMetrics.custom_disparities ?? []).filter(d => d.id !== id) });
+    // Remove it from this evaluation's running template too, so future scenarios stop
+    // getting it seeded automatically.
+    onCriterionRemovedFromEvaluation(id);
   };
 
   const handleCustomDisparityChange = (id: string, field: 'value' | 'details', val: string) => {
