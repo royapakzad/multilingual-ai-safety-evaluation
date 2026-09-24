@@ -99,6 +99,30 @@ const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores
                     </React.Fragment>
                 );
             })}
+            {/* Older records scored before the LLM judge covered custom criteria will have
+                no matching entry on the llm side — shown with an honest placeholder rather
+                than a fabricated comparison. */}
+            {human.custom_criteria.map(criterion => {
+                const llmCriterion = llm.custom_criteria?.find(c => c.id === criterion.id);
+                const humanDisplay = criterion.type === 'slider' ? `${criterion.value} / 5` : String(criterion.value);
+                const llmDisplay = llmCriterion
+                    ? (llmCriterion.type === 'slider' ? `${llmCriterion.value} / 5` : String(llmCriterion.value))
+                    : 'Not scored by LLM judge';
+                const isMismatch = llmCriterion
+                    ? (criterion.type === 'slider'
+                        ? Math.abs((criterion.value as number) - (llmCriterion.value as number)) > 1
+                        : criterion.value !== llmCriterion.value)
+                    : false;
+                return (
+                    <ScoreDisplay
+                        key={criterion.id}
+                        label={`${criterion.label} (Custom)`}
+                        humanValue={humanDisplay}
+                        llmValue={llmDisplay}
+                        isMismatch={isMismatch}
+                    />
+                );
+            })}
         </div>
     );
 
@@ -141,6 +165,23 @@ const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores
                                    />
                                    {humanDetails && <div className="text-xs italic text-muted-foreground/80 mt-1 bg-muted p-2 rounded-md"><strong className="text-foreground/80">Human Details:</strong> {humanDetails as string}</div>}
                                    {llmDetails && <div className="text-xs italic text-muted-foreground/80 mt-1 bg-muted p-2 rounded-md"><strong className="text-foreground/80">LLM Details:</strong> {llmDetails as string}</div>}
+                               </React.Fragment>
+                           );
+                       })}
+                       {(humanScores.disparity.custom_disparities ?? []).map(disparity => {
+                           const llmDisparity = llmScores.disparity.custom_disparities?.find(d => d.id === disparity.id);
+                           const llmDisplay = llmDisparity ? getDisparityLabel(llmDisparity.value) : 'Not scored by LLM judge';
+                           const isMismatch = llmDisparity ? disparity.value !== llmDisparity.value : false;
+                           return (
+                               <React.Fragment key={disparity.id}>
+                                   <ScoreDisplay
+                                       label={`Disparity in ${disparity.label} (Custom)`}
+                                       humanValue={getDisparityLabel(disparity.value)}
+                                       llmValue={llmDisplay}
+                                       isMismatch={isMismatch}
+                                   />
+                                   {disparity.details && <div className="text-xs italic text-muted-foreground/80 mt-1 bg-muted p-2 rounded-md"><strong className="text-foreground/80">Human Details:</strong> {disparity.details}</div>}
+                                   {llmDisparity?.details && <div className="text-xs italic text-muted-foreground/80 mt-1 bg-muted p-2 rounded-md"><strong className="text-foreground/80">LLM Details:</strong> {llmDisparity.details}</div>}
                                </React.Fragment>
                            );
                        })}
