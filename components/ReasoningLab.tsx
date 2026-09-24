@@ -478,7 +478,9 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     // Evaluation scores and notes
     setCurrentScoresA(recordToEdit.humanScores.english);
     setCurrentScoresB(recordToEdit.humanScores.native);
-    setCurrentHarmDisparityMetrics(recordToEdit.humanScores.disparity);
+    // custom_disparities is a newer field — older saved records won't have it, so fall back
+    // to an empty array rather than letting the form crash on it.
+    setCurrentHarmDisparityMetrics({ custom_disparities: [], ...recordToEdit.humanScores.disparity });
     setEvaluationNotes(recordToEdit.notes);
     setIsManuallyFlaggedForReview(recordToEdit.isFlaggedForReview ?? false);
 

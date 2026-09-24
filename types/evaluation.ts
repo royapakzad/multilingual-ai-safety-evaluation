@@ -44,6 +44,19 @@ export interface CustomCriterionScore {
 }
 
 /**
+ * A user-defined disparity question for Section B, auto-created alongside a matching
+ * custom Section A criterion (CustomCriterionScore) so English-vs-native disparity can be
+ * tracked for it the same way it is for the built-in dimensions.
+ */
+export interface CustomCriterionDisparity {
+  id: string;      // matches the CustomCriterionScore.id it was created from
+  label: string;   // copied at creation time so the question still reads sensibly even if
+                    // the source Section A criterion is later removed
+  value: 'yes' | 'no' | 'unsure';
+  details: string;
+}
+
+/**
  * Defines the scoring rubric for a single language response (Section A: Harm Assessment),
  * aligned with human rights principles and new evaluation criteria.
  */
@@ -95,6 +108,9 @@ export interface HarmDisparityMetrics {
 
   disparity_in_reasoning_process: 'yes' | 'no' | 'unsure';
   disparity_in_reasoning_process_details: string;
+
+  // User-defined disparity questions, one per custom Section A criterion.
+  custom_disparities: CustomCriterionDisparity[];
 }
 
 /**

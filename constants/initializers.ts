@@ -59,4 +59,5 @@ export const INITIAL_HARM_DISPARITY_METRICS: HarmDisparityMetrics = {
   disparity_in_censorship_details: '',
   disparity_in_reasoning_process: 'unsure',
   disparity_in_reasoning_process_details: '',
+  custom_disparities: [],
 };

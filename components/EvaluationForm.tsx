@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { LanguageSpecificRubricScores, HarmDisparityMetrics, RubricDimension, VerifiableEntity, CustomCriterionScore } from '../types';
+import { LanguageSpecificRubricScores, HarmDisparityMetrics, RubricDimension, VerifiableEntity, CustomCriterionScore, CustomCriterionDisparity } from '../types';
 import {
     HARM_SCALE,
     NON_DISCRIMINATION_OPTIONS,
@@ -437,6 +437,10 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
     };
     onEnglishScoresChange({ ...englishScores, custom_criteria: [...englishScores.custom_criteria, { ...newCriterion }] });
     onNativeScoresChange({ ...nativeScores, custom_criteria: [...nativeScores.custom_criteria, { ...newCriterion }] });
+    // Section B needs a matching disparity question, or a custom criterion never gets a
+    // way to flag an English-vs-native difference the way built-in dimensions do.
+    const newDisparity: CustomCriterionDisparity = { id, label: newCriterion.label, value: 'unsure', details: '' };
+    onHarmDisparityMetricsChange({ ...harmDisparityMetrics, custom_disparities: [...(harmDisparityMetrics.custom_disparities ?? []), newDisparity] });
     setIsAddingCriterion(false);
     setNewLabel('');
     setNewDesc('');
@@ -447,6 +451,14 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
   const handleDeleteCriterion = (id: string) => {
     onEnglishScoresChange({ ...englishScores, custom_criteria: englishScores.custom_criteria.filter(c => c.id !== id) });
     onNativeScoresChange({ ...nativeScores, custom_criteria: nativeScores.custom_criteria.filter(c => c.id !== id) });
+    onHarmDisparityMetricsChange({ ...harmDisparityMetrics, custom_disparities: (harmDisparityMetrics.custom_disparities ?? []).filter(d => d.id !== id) });
+  };
+
+  const handleCustomDisparityChange = (id: string, field: 'value' | 'details', val: string) => {
+    onHarmDisparityMetricsChange({
+      ...harmDisparityMetrics,
+      custom_disparities: (harmDisparityMetrics.custom_disparities ?? []).map(d => d.id === id ? { ...d, [field]: val } : d),
+    });
   };
 
   const handleOptionChange = (idx: number, val: string) => {
@@ -668,8 +680,40 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
                         <div>
                             <label htmlFor={metric.detailsKey} className="block text-sm font-medium text-foreground mb-1.5">Details for {metric.label}:</label>
                             <textarea id={metric.detailsKey} rows={3}
-                                value={harmDisparityMetrics[metric.detailsKey as keyof HarmDisparityMetrics]}
+                                value={harmDisparityMetrics[metric.detailsKey as keyof HarmDisparityMetrics] as string}
                                 onChange={(e) => handleDisparityMetricChange(metric.detailsKey as keyof HarmDisparityMetrics, e.target.value)}
+                                placeholder="Please provide specific examples or observations..."
+                                className="form-textarea w-full p-3 border rounded-md shadow-sm bg-background border-border focus:outline-none focus:ring-2 focus:ring-ring text-sm text-foreground placeholder:text-muted-foreground"
+                            />
+                        </div>
+                    )}
+                </fieldset>
+            </div>
+        ))}
+        {(harmDisparityMetrics.custom_disparities ?? []).map(disparity => (
+            <div key={disparity.id} className="py-5">
+                <fieldset>
+                    <legend className="block text-md font-medium text-foreground mb-2.5">
+                        Disparity in {disparity.label}
+                        <span className="ml-2 text-xs font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Custom</span>
+                    </legend>
+                    <div className="flex flex-wrap gap-x-6 gap-y-3.5 mb-3.5">
+                        {YES_NO_UNSURE_OPTIONS.map(option => (
+                        <label key={option.value} className="flex items-center space-x-2.5 cursor-pointer group">
+                            <input type="radio" name={`custom-disparity-${disparity.id}`} value={option.value}
+                            checked={disparity.value === option.value}
+                            onChange={(e) => handleCustomDisparityChange(disparity.id, 'value', e.target.value)}
+                            className="form-radio h-4 w-4 text-primary focus:ring-ring border-input accent-primary"/>
+                            <span className="text-sm text-foreground group-hover:text-primary">{option.label}</span>
+                        </label>
+                        ))}
+                    </div>
+                    {disparity.value === 'yes' && (
+                        <div>
+                            <label htmlFor={`custom-disparity-${disparity.id}-details`} className="block text-sm font-medium text-foreground mb-1.5">Details for {disparity.label}:</label>
+                            <textarea id={`custom-disparity-${disparity.id}-details`} rows={3}
+                                value={disparity.details}
+                                onChange={(e) => handleCustomDisparityChange(disparity.id, 'details', e.target.value)}
                                 placeholder="Please provide specific examples or observations..."
                                 className="form-textarea w-full p-3 border rounded-md shadow-sm bg-background border-border focus:outline-none focus:ring-2 focus:ring-ring text-sm text-foreground placeholder:text-muted-foreground"
                             />
