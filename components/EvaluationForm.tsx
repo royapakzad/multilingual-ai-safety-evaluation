@@ -219,6 +219,11 @@ interface EvaluationFormProps {
   wordsPerSecondEnglish?: number | null;
   wordsPerSecondNative?: number | null;
   isEditing?: boolean;
+
+  // Built-in rubric dimensions (constants/rubric.ts RUBRIC_DIMENSIONS) removed from
+  // this evaluation, and the handler to toggle one in or out.
+  hiddenBuiltInKeys: string[];
+  onToggleHiddenBuiltInKey: (key: string, hide: boolean) => void;
 }
 
 const HarmAssessmentSection: React.FC<{
@@ -226,9 +231,10 @@ const HarmAssessmentSection: React.FC<{
   onScoreChange: (key: keyof LanguageSpecificRubricScores, value: any) => void;
   onCustomCriterionValueChange: (id: string, value: number | string) => void;
   sectionIdPrefix: string;
-}> = ({ scores, onScoreChange, onCustomCriterionValueChange, sectionIdPrefix }) => (
+  hiddenBuiltInKeys: string[];
+}> = ({ scores, onScoreChange, onCustomCriterionValueChange, sectionIdPrefix, hiddenBuiltInKeys }) => (
   <div className="space-y-8">
-    {RUBRIC_DIMENSIONS.map(dim => {
+    {RUBRIC_DIMENSIONS.filter(dim => !hiddenBuiltInKeys.includes(dim.key)).map(dim => {
       const inputId = `${sectionIdPrefix}-${dim.key}`;
       return (
         <div key={inputId} className="py-4 border-b border-border/70 last:border-b-0 last:pb-0">
@@ -386,6 +392,8 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
   wordsPerSecondEnglish,
   wordsPerSecondNative,
   isEditing = false,
+  hiddenBuiltInKeys,
+  onToggleHiddenBuiltInKey,
 }) => {
 
   const handleScoreChange = (setter: Function, currentScores: LanguageSpecificRubricScores) =>
@@ -488,6 +496,30 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
       
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-4 text-center">A. Single Response Harm Assessment</h3>
+
+        {/* Built-in Criteria Management */}
+        <div className="mb-6 p-4 rounded-lg border border-dashed border-border bg-background/50">
+          <div className="mb-3">
+            <h4 className="text-sm font-semibold text-foreground">Built-in Criteria</h4>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Remove any of these from this evaluation if they don't apply. This only affects this evaluation's form — nothing else is deleted.
+            </p>
+          </div>
+          <ul className="space-y-2">
+            {RUBRIC_DIMENSIONS.map(dim => {
+              const isHidden = hiddenBuiltInKeys.includes(dim.key);
+              return (
+                <li key={dim.key} className={`flex items-center justify-between rounded-md px-3 py-2 border text-sm ${isHidden ? 'bg-muted/50 border-border/50' : 'bg-background border-border/70'}`}>
+                  <span className={`font-medium ${isHidden ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{dim.label}</span>
+                  <button type="button" onClick={() => onToggleHiddenBuiltInKey(dim.key, !isHidden)}
+                    className={`text-xs px-2 py-0.5 rounded transition-colors ${isHidden ? 'bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground' : 'bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground'}`}>
+                    {isHidden ? 'Restore' : 'Remove'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
 
         {/* Custom Criteria Management */}
         <div className="mb-6 p-4 rounded-lg border border-dashed border-primary/40 bg-primary/5">
@@ -593,7 +625,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
               </div>
             )}
             <h4 className="text-md font-semibold text-center text-primary pb-2 border-b border-border mb-4">{safeTitleA}</h4>
-            <HarmAssessmentSection scores={englishScores} onScoreChange={handleScoreChange(onEnglishScoresChange, englishScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onEnglishScoresChange, englishScores)} sectionIdPrefix="english-eval" />
+            <HarmAssessmentSection scores={englishScores} onScoreChange={handleScoreChange(onEnglishScoresChange, englishScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onEnglishScoresChange, englishScores)} sectionIdPrefix="english-eval" hiddenBuiltInKeys={hiddenBuiltInKeys} />
           </fieldset>
 
           <fieldset disabled={isNativeResponseError} className="space-y-4 disabled:opacity-60 disabled:cursor-not-allowed">
@@ -603,7 +635,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
                 </div>
               )}
             <h4 className="text-md font-semibold text-center text-primary pb-2 border-b border-border mb-4">{safeTitleB}</h4>
-            <HarmAssessmentSection scores={nativeScores} onScoreChange={handleScoreChange(onNativeScoresChange, nativeScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onNativeScoresChange, nativeScores)} sectionIdPrefix="native-eval" />
+            <HarmAssessmentSection scores={nativeScores} onScoreChange={handleScoreChange(onNativeScoresChange, nativeScores)} onCustomCriterionValueChange={handleCustomCriterionValueChange(onNativeScoresChange, nativeScores)} sectionIdPrefix="native-eval" hiddenBuiltInKeys={hiddenBuiltInKeys} />
           </fieldset>
         </div>
       </div>

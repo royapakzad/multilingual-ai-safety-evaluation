@@ -12,9 +12,10 @@ import {
     VerifiableEntity, RubricDimension, CsvScenario, LlmEvaluation
 } from '../types';
 import { 
-    EVALUATIONS_KEY, AVAILABLE_MODELS, REASONING_SYSTEM_INSTRUCTION, 
+    EVALUATIONS_KEY, AVAILABLE_MODELS, REASONING_SYSTEM_INSTRUCTION,
     INITIAL_LANGUAGE_SPECIFIC_RUBRIC_SCORES, INITIAL_HARM_DISPARITY_METRICS,
-    AVAILABLE_NATIVE_LANGUAGES, RUBRIC_DIMENSIONS, HARM_SCALE, YES_NO_UNSURE_OPTIONS, DISPARITY_CRITERIA
+    AVAILABLE_NATIVE_LANGUAGES, RUBRIC_DIMENSIONS, HARM_SCALE, YES_NO_UNSURE_OPTIONS, DISPARITY_CRITERIA,
+    HIDDEN_BUILT_IN_CRITERIA_KEY_PREFIX
 } from '../constants';
 import * as config from '../env.js';
 import LoadingSpinner from './LoadingSpinner';
@@ -225,7 +226,36 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
   const [evaluationNotes, setEvaluationNotes] = useState<string>('');
   const [allEvaluations, setAllEvaluations] = useState<ReasoningEvaluationRecord[]>([]);
   const [isManuallyFlaggedForReview, setIsManuallyFlaggedForReview] = useState<boolean>(false);
-  
+
+  // Which built-in rubric dimensions (constants/rubric.ts RUBRIC_DIMENSIONS) have been
+  // removed from the scoring form for THIS named evaluation. Kept in localStorage per
+  // evaluationName, so it's remembered whenever this evaluation is continued, without
+  // needing any database schema change.
+  const [hiddenBuiltInKeys, setHiddenBuiltInKeys] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`${HIDDEN_BUILT_IN_CRITERIA_KEY_PREFIX}${evaluationName}`);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setHiddenBuiltInKeys(Array.isArray(parsed) ? parsed : []);
+    } catch (e) {
+      console.warn('Failed to load hidden criteria for this evaluation from localStorage:', e);
+      setHiddenBuiltInKeys([]);
+    }
+  }, [evaluationName]);
+
+  const handleToggleHiddenBuiltInKey = (key: string, hide: boolean) => {
+    setHiddenBuiltInKeys(prev => {
+      const next = hide ? [...new Set([...prev, key])] : prev.filter(k => k !== key);
+      try {
+        localStorage.setItem(`${HIDDEN_BUILT_IN_CRITERIA_KEY_PREFIX}${evaluationName}`, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to save hidden criteria for this evaluation to localStorage:', e);
+      }
+      return next;
+    });
+  };
+
   const translationDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initial data load
@@ -898,6 +928,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                     generationTimeEnglish={generationTimeA} generationTimeNative={generationTimeB}
                     wordCountEnglish={answerWordCountA} wordCountNative={answerWordCountB}
                     wordsPerSecondEnglish={wordsPerSecondA} wordsPerSecondNative={wordsPerSecondB}
+                    hiddenBuiltInKeys={hiddenBuiltInKeys} onToggleHiddenBuiltInKey={handleToggleHiddenBuiltInKey}
                 />
             </section>
         )}
