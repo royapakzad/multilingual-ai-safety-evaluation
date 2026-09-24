@@ -13,9 +13,11 @@ interface HeaderProps {
   onBack?: () => void;
   onChangePassword?: () => void;
   onOpenAccessRequests?: () => void;
+  // When provided, the title becomes a link back to the evaluation-picker screen.
+  onTitleClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, user, currentTheme, onThemeToggle, onLogout, showBack, onBack, onChangePassword, onOpenAccessRequests }) => {
+const Header: React.FC<HeaderProps> = ({ title, user, currentTheme, onThemeToggle, onLogout, showBack, onBack, onChangePassword, onOpenAccessRequests, onTitleClick }) => {
   return (
     <header className="bg-card text-card-foreground shadow-md sticky top-0 z-50 border-b border-border">
       <div className="container mx-auto px-4 md:px-6 py-3.5 flex justify-between items-center">
@@ -31,11 +33,27 @@ const Header: React.FC<HeaderProps> = ({ title, user, currentTheme, onThemeToggl
                 </svg>
              </button>
            )}
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-primary hidden sm:block">
-             <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" opacity="0.3"/>
-             <path fill="currentColor" d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8 8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm1-11h-2v4h2V7zm0 6h-2v2h2v-2z"/>
-           </svg>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+           {onTitleClick ? (
+             <button
+               onClick={onTitleClick}
+               className="flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-ring rounded-md -m-1 p-1 hover:opacity-80 transition-opacity"
+               aria-label="Back to evaluation picker"
+             >
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-primary hidden sm:block">
+                 <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" opacity="0.3"/>
+                 <path fill="currentColor" d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8 8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm1-11h-2v4h2V7zm0 6h-2v2h2v-2z"/>
+               </svg>
+               <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+             </button>
+           ) : (
+             <>
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-primary hidden sm:block">
+                 <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" opacity="0.3"/>
+                 <path fill="currentColor" d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8 8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm1-11h-2v4h2V7zm0 6h-2v2h2v-2z"/>
+               </svg>
+               <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+             </>
+           )}
         </div>
         <div className="flex items-center space-x-2 sm:space-x-4">
           {user && (

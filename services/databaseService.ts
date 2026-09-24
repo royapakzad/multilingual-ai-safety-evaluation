@@ -233,3 +233,47 @@ export const renameEvaluationGroup = async (evaluationIds: string[], newName: st
 
   return { succeededIds, failed };
 };
+
+/**
+ * Result of a bulk delete: which document IDs were deleted, and which failed along with
+ * the specific error for each.
+ */
+export interface DeleteEvaluationGroupResult {
+  succeededIds: string[];
+  failed: { id: string; error: string }[];
+}
+
+/**
+ * Permanently deletes a group of evaluations — e.g. every record under one named
+ * evaluation. Deliberately NOT an atomic batch, same reasoning as renameEvaluationGroup:
+ * one bad/missing ID must not silently block deleting the rest. Irreversible.
+ * @param evaluationIds The Firestore document IDs of the records to delete.
+ */
+export const deleteEvaluationGroup = async (evaluationIds: string[]): Promise<DeleteEvaluationGroupResult> => {
+  if (evaluationIds.length === 0) return { succeededIds: [], failed: [] };
+
+  const CONCURRENCY = 50;
+  const succeededIds: string[] = [];
+  const failed: { id: string; error: string }[] = [];
+
+  for (let i = 0; i < evaluationIds.length; i += CONCURRENCY) {
+    const chunk = evaluationIds.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(chunk.map(id => deleteDoc(doc(db, 'evaluations', id))));
+    results.forEach((result, idx) => {
+      const id = chunk[idx];
+      if (result.status === 'fulfilled') {
+        succeededIds.push(id);
+      } else {
+        const message = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        failed.push({ id, error: message });
+      }
+    });
+  }
+
+  if (failed.length > 0) {
+    console.error(`deleteEvaluationGroup: ${failed.length} of ${evaluationIds.length} failed to delete.`, failed);
+  }
+  console.log(`deleteEvaluationGroup: ${succeededIds.length} of ${evaluationIds.length} deleted.`);
+
+  return { succeededIds, failed };
+};
