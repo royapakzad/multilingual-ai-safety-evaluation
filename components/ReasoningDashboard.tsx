@@ -360,6 +360,49 @@ const DrilldownModal: React.FC<{ data: { title: string; evaluations: ReasoningEv
     )
 }
 
+// Custom criteria can have any number of evaluator-written options (unlike the fixed
+// yes/no/unsure of StackedBarChart above), so this cycles through a fixed palette rather
+// than assuming a specific option count.
+const CUSTOM_OPTION_COLORS = ['#3b82f6', '#a855f7', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
+
+const OptionDistributionBar: React.FC<{
+    rowLabel: string;
+    options: string[];
+    counts: Record<string, number>;
+}> = ({ rowLabel, options, counts }) => {
+    const total = options.reduce((sum, opt) => sum + (counts[opt] ?? 0), 0);
+    return (
+        <div className="flex items-center gap-3">
+            <span className="w-16 text-right text-muted-foreground text-xs shrink-0">{rowLabel}</span>
+            <div className="flex-grow">
+                {total > 0 ? (
+                    <>
+                        <div className="w-full flex h-5 rounded-md overflow-hidden bg-muted">
+                            {options.map((opt, i) => {
+                                const count = counts[opt] ?? 0;
+                                const percent = (count / total) * 100;
+                                return percent > 0 ? (
+                                    <div key={opt} style={{ width: `${percent}%`, backgroundColor: CUSTOM_OPTION_COLORS[i % CUSTOM_OPTION_COLORS.length] }} title={`${opt}: ${count}`} />
+                                ) : null;
+                            })}
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs mt-1 text-muted-foreground">
+                            {options.map((opt, i) => (
+                                <span key={opt} className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: CUSTOM_OPTION_COLORS[i % CUSTOM_OPTION_COLORS.length] }} />
+                                    {opt}: {counts[opt] ?? 0}
+                                </span>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <div className="text-center text-xs text-muted-foreground italic h-5 flex items-center">No data.</div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const AgreementRateChart: React.FC<{data: {label: string, agreement: number}[]}> = ({data}) => (
     <div className="space-y-3">
         {data.map(item => (
@@ -1161,6 +1204,85 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
         };
     }, [filteredEvaluations]);
 
+    // Custom criteria have no fixed identity across evaluations the way the built-in six
+    // do (unique id per creation, no shared meaning). Two criteria only count as "the same"
+    // if they share both a normalized label AND the exact same option set — same label with
+    // different options shows up as a separate group rather than being silently merged into
+    // a meaningless combined distribution. Legacy slider-type custom criteria (created before
+    // custom criteria became write-your-own-options only) are excluded — they predate this
+    // model entirely and can't be distributed the same way.
+    const customCriteriaGroups = useMemo(() => {
+        const groups = new Map<string, {
+            label: string;
+            options: string[];
+            evalCount: number;
+            englishCounts: Record<string, number>;
+            nativeCounts: Record<string, number>;
+            llmAgreementCount: number;
+            llmAgreementTotal: number;
+            disparityYes: number;
+            disparityTotal: number;
+        }>();
+
+        filteredEvaluations.forEach(ev => {
+            const englishCriteria = ev.humanScores?.english?.custom_criteria ?? [];
+            const nativeCriteria = ev.humanScores?.native?.custom_criteria ?? [];
+            const disparities = ev.humanScores?.disparity?.custom_disparities ?? [];
+            const llmCompleted = ev.llmEvaluationStatus === 'completed' && ev.llmScores;
+            const llmEnglish = llmCompleted ? (ev.llmScores!.english.custom_criteria ?? []) : [];
+            const llmNative = llmCompleted ? (ev.llmScores!.native.custom_criteria ?? []) : [];
+
+            englishCriteria.forEach(criterion => {
+                if (criterion.type !== 'custom_options' || !criterion.options || criterion.options.length === 0) return;
+
+                const signature = `${criterion.label.trim().toLowerCase()}::${criterion.options.slice().sort().join('|')}`;
+                if (!groups.has(signature)) {
+                    groups.set(signature, {
+                        label: criterion.label,
+                        options: criterion.options,
+                        evalCount: 0,
+                        englishCounts: {},
+                        nativeCounts: {},
+                        llmAgreementCount: 0,
+                        llmAgreementTotal: 0,
+                        disparityYes: 0,
+                        disparityTotal: 0,
+                    });
+                }
+                const group = groups.get(signature)!;
+                group.evalCount++;
+
+                const englishValue = String(criterion.value);
+                group.englishCounts[englishValue] = (group.englishCounts[englishValue] ?? 0) + 1;
+
+                const nativeCriterion = nativeCriteria.find(c => c.id === criterion.id);
+                if (nativeCriterion) {
+                    const nativeValue = String(nativeCriterion.value);
+                    group.nativeCounts[nativeValue] = (group.nativeCounts[nativeValue] ?? 0) + 1;
+                }
+
+                const llmEnglishCriterion = llmEnglish.find(c => c.id === criterion.id);
+                if (llmEnglishCriterion) {
+                    group.llmAgreementTotal++;
+                    if (llmEnglishCriterion.value === criterion.value) group.llmAgreementCount++;
+                }
+                const llmNativeCriterion = llmNative.find(c => c.id === criterion.id);
+                if (llmNativeCriterion && nativeCriterion) {
+                    group.llmAgreementTotal++;
+                    if (llmNativeCriterion.value === nativeCriterion.value) group.llmAgreementCount++;
+                }
+
+                const disparity = disparities.find(d => d.id === criterion.id);
+                if (disparity) {
+                    group.disparityTotal++;
+                    if (disparity.value === 'yes') group.disparityYes++;
+                }
+            });
+        });
+
+        return Array.from(groups.values()).sort((a, b) => b.evalCount - a.evalCount);
+    }, [filteredEvaluations]);
+
     const mergedContextDataForPlots = useMemo(() => {
         if (!contextAnalysisData || !llmContextAnalysisData) {
             return null;
@@ -1482,7 +1604,51 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                             </div>
                         </DashboardCard>
                     )}
-                    
+
+                    {customCriteriaGroups.length > 0 && (
+                        <DashboardCard
+                            title="Custom Criteria"
+                            subtitle="Evaluator-defined criteria, grouped by label and option set — two criteria only count as the same if both match exactly, so the same label used with different wording shows up as its own group rather than being merged."
+                        >
+                            <div className="space-y-8">
+                                {customCriteriaGroups.map(group => {
+                                    const agreementPercent = group.llmAgreementTotal > 0 ? (group.llmAgreementCount / group.llmAgreementTotal) * 100 : null;
+                                    const disparityYesPercent = group.disparityTotal > 0 ? (group.disparityYes / group.disparityTotal) * 100 : 0;
+                                    return (
+                                        <div key={`${group.label}::${group.options.join('|')}`} className="pb-6 border-b border-border/60 last:border-b-0 last:pb-0">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <h4 className="font-semibold text-foreground">{group.label}</h4>
+                                                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{group.evalCount} {group.evalCount === 1 ? 'evaluation' : 'evaluations'}</span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mb-3">Options: {group.options.join(', ')}</p>
+                                            <div className="space-y-2">
+                                                <OptionDistributionBar rowLabel="English" options={group.options} counts={group.englishCounts} />
+                                                <OptionDistributionBar rowLabel="Native" options={group.options} counts={group.nativeCounts} />
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                                                <div>
+                                                    <p className="text-xs font-medium text-foreground mb-1">Human vs. LLM Agreement</p>
+                                                    {agreementPercent !== null ? (
+                                                        <AgreementRateChart data={[{ label: 'Exact match', agreement: agreementPercent }]} />
+                                                    ) : (
+                                                        <p className="text-xs text-muted-foreground italic">No completed LLM judge results yet for this criterion.</p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium text-foreground mb-1">Disparity Flagged (human)</p>
+                                                    {group.disparityTotal > 0 ? (
+                                                        <p className="text-sm text-foreground">{group.disparityYes} of {group.disparityTotal} evaluations ({disparityYesPercent.toFixed(0)}%) flagged a disparity.</p>
+                                                    ) : (
+                                                        <p className="text-xs text-muted-foreground italic">No disparity data.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </DashboardCard>
+                    )}
 
                 </>
             )}
