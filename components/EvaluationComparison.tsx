@@ -93,7 +93,7 @@ const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores
                         {dim.hasEntityVerification && (
                             <div className="py-3 border-b border-border/60 last:border-b-0">
                                 <div className="font-semibold text-foreground/90 mb-1">Human-Verified Entities</div>
-                                <EntityListDisplay entities={human.entities} />
+                                <EntityListDisplay entities={human.entities ?? []} />
                             </div>
                         )}
                     </React.Fragment>
@@ -102,7 +102,7 @@ const EvaluationComparison: React.FC<EvaluationComparisonProps> = ({ humanScores
             {/* Older records scored before the LLM judge covered custom criteria will have
                 no matching entry on the llm side — shown with an honest placeholder rather
                 than a fabricated comparison. */}
-            {human.custom_criteria.map(criterion => {
+            {(human.custom_criteria ?? []).map(criterion => {
                 const llmCriterion = llm.custom_criteria?.find(c => c.id === criterion.id);
                 const humanDisplay = criterion.type === 'slider' ? `${criterion.value} / 5` : String(criterion.value);
                 const llmDisplay = llmCriterion
