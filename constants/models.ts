@@ -19,6 +19,7 @@ export const SUGGESTED_MODELS: ModelDefinition[] = [
   { id: "deepseek/deepseek-v4.1-flash", name: "DeepSeek V4.1 Flash", provider: "otari", license: "open-weight" },
   { id: "z-ai/glm-5.3", name: "GLM 5.3 (Z.ai)", provider: "otari", license: "open-weight" },
   { id: "huggingface:swiss-ai/Apertus-v1.5-70B", name: "Apertus 1.5 70B (SwissAI)", provider: "otari", license: "open-weight" },
+  { id: "huggingface:swiss-ai/Apertus-8B-Instruct-2509", name: "Apertus 8B Instruct (SwissAI)", provider: "otari", license: "open-weight" },
   { id: "mistral:mistral-small-latest", name: "Mistral Small", provider: "otari", license: "open-weight" },
   // Proprietary
   { id: "openai:gpt-5", name: "GPT-5 (OpenAI)", provider: "otari", license: "proprietary" },
