@@ -63,6 +63,19 @@ service cloud.firestore {
       allow create: if request.auth != null;
     }
 
+    // Partner-organization membership → which Otari workspace key a user's LLM calls use
+    // (see services/orgService.ts and api/llm.ts). Doc id = lowercased email.
+    // Only the admin can assign orgs; each user can read only their own entry. Keep this
+    // separate from users/{uid}, which users can write themselves — otherwise an evaluator
+    // could move themselves into another organization's Otari budget.
+    match /orgMemberships/{email} {
+      allow read: if request.auth != null &&
+        (request.auth.token.email == email ||
+         request.auth.token.email == 'rpakzad@taraazresearch.org');
+      allow write: if request.auth != null &&
+        request.auth.token.email == 'rpakzad@taraazresearch.org';
+    }
+
     // Access requests: anyone can submit a request (no account needed yet),
     // but only the admin can read/review/update them. `create` is shape-checked
     // so a submission can only ever land as {email, purpose, status: 'pending'}.

@@ -12,14 +12,11 @@
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
-    "@google/genai": "^1.11.0",
-    "@mistralai/mistralai": "^1.7.5",
     "dompurify": "^3.2.6",
     "firebase": "^12.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "marked": "^16.1.1",
-    "openai": "^5.10.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

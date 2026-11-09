@@ -234,6 +234,13 @@ interface EvaluationFormProps {
   // has to be defined once per evaluation, not once per scenario.
   onCriterionAddedToEvaluation: (criterion: CustomCriterionScore) => void;
   onCriterionRemovedFromEvaluation: (id: string) => void;
+
+  // 'response' (default): single-prompt wording, heading and time/length metrics.
+  // 'conversation': multi-turn wording, no heading or per-response metrics (the parent shows its own).
+  // 'research': web-research wording; like 'conversation', no heading or per-response metrics.
+  unit?: 'response' | 'conversation' | 'research';
+  // false: no built-in rubric in this mode — hide the built-in criteria list entirely.
+  builtInCriteria?: boolean;
 }
 
 const HarmAssessmentSection: React.FC<{
@@ -419,7 +426,10 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
   onToggleHiddenBuiltInKey,
   onCriterionAddedToEvaluation,
   onCriterionRemovedFromEvaluation,
+  unit = 'response',
+  builtInCriteria = true,
 }) => {
+  const isConversation = unit !== 'response'; // hides the single-response heading and metrics
 
   const handleScoreChange = (setter: Function, currentScores: LanguageSpecificRubricScores) =>
     (key: keyof LanguageSpecificRubricScores, value: string | number | VerifiableEntity[]) => {
@@ -520,8 +530,9 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
   
   return (
     <form onSubmit={handleSubmit} className="space-y-12">
-      <h2 className="text-xl sm:text-2xl font-bold text-foreground text-center tracking-tight">3. Assessment</h2>
+      {!isConversation && <h2 className="text-xl sm:text-2xl font-bold text-foreground text-center tracking-tight">3. Assessment</h2>}
       
+      {!isConversation && (
       <div className="bg-background p-4 rounded-lg border border-border/70 shadow-sm">
         <h3 className="sr-only">Performance Metrics</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
@@ -551,12 +562,13 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
             </div>
         </div>
       </div>
+      )}
       
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4 text-center">A. Single Response Assessment</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4 text-center">{unit === 'conversation' ? 'A. Whole-Conversation Assessment' : unit === 'research' ? 'A. Answer and Research Assessment' : 'A. Single Response Assessment'}</h3>
 
         {/* Built-in Criteria Management */}
-        <div className="mb-6 p-4 rounded-lg border border-dashed border-border bg-background/50">
+        {builtInCriteria && <div className="mb-6 p-4 rounded-lg border border-dashed border-border bg-background/50">
           <div className="mb-3">
             <h4 className="text-sm font-semibold text-foreground">Built-in Criteria</h4>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -577,7 +589,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
               );
             })}
           </ul>
-        </div>
+        </div>}
 
         {/* Custom Criteria Management */}
         <div className="mb-6 p-4 rounded-lg border border-dashed border-primary/40 bg-primary/5">
@@ -585,7 +597,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
             <div>
               <h4 className="text-sm font-semibold text-foreground">Custom Criteria</h4>
               <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl">
-                Add a criterion specific to what matters in your context — something the built-in dimensions above don't cover.
+                {builtInCriteria ? "Add a criterion specific to what matters in your context — something the built-in dimensions above don't cover." : 'This evaluation is scored only on the criteria you define here. Each one is scored for both languages, with a matching cross-language question. '}
                 Write your own options describing what satisfying it looks like, from best to worst; there's no generic 1–5 scale here since what "good" means is different for every criterion.
                 <span className="block mt-1 italic">Example: a criterion called "Refusal Behavior" might use the options "Little refusal", "Some refusal", "Excessive refusal".</span>
               </p>
@@ -688,7 +700,7 @@ const EvaluationForm: React.FC<EvaluationFormProps> = ({
       </div>
 
       <fieldset disabled={isComparisonDisabled} className="space-y-8 pt-8 border-t border-border disabled:opacity-60 disabled:cursor-not-allowed">
-        <h3 className="text-lg font-semibold text-foreground text-center mb-4">B. Cross-Response Disparity Assessment</h3>
+        <h3 className="text-lg font-semibold text-foreground text-center mb-4">{unit === 'conversation' ? 'B. Cross-Conversation Disparity Assessment' : unit === 'research' ? 'B. Cross-Language Disparity Assessment' : 'B. Cross-Response Disparity Assessment'}</h3>
         {isComparisonDisabled && (
             <div className="p-3 text-sm bg-yellow-100/80 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-400/50 dark:border-yellow-600/50 rounded-lg text-center font-medium">
                 Comparison is disabled because at least one response failed to generate.

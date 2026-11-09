@@ -1,11 +1,13 @@
 // constants/api.ts
 
 /**
- * Defines the names of the environment variables used to store API keys in `env.js`.
- * This provides a single source of truth for these key names.
+ * All LLM traffic goes through the serverless gateway at /api/llm (api/llm.ts), which calls
+ * Otari with a server-side key. No provider or Otari key is ever shipped to the browser.
+ *
+ * Server-side environment variables (Vercel → Project → Settings → Environment Variables):
+ *   OTARI_KEY_DEFAULT      Otari key for evaluators not assigned to a partner organization
+ *   OTARI_KEY_<ORG_ID>     Otari key for a partner org, e.g. OTARI_KEY_UNESCO
+ *   OTARI_BASE_URL         optional; defaults to https://api.otari.ai/api/v1 (EU: https://eu.api.otari.ai/api/v1)
+ *   FIREBASE_PROJECT_ID    optional; defaults to the lab's Firebase project
  */
-export const GEMINI_API_KEY_ENV_VAR = "API_KEY"; // Standard Gemini API Key
-export const OPENAI_API_KEY_ENV_VAR = "OPENAI_API_KEY";
-export const MISTRAL_API_KEY_ENV_VAR = "MISTRAL_API_KEY";
-export const OPENROUTER_API_KEY_ENV_VAR = "OPENROUTER_API_KEY";
-export const HUGGINGFACE_API_KEY_ENV_VAR = "HUGGINGFACE_API_KEY"; // HF Inference Providers router (used for Apertus/SwissAI)
+export const LLM_GATEWAY_PATH = '/api/llm';

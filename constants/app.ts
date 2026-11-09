@@ -3,7 +3,7 @@
 /**
  * General application-wide constants.
  */
-export const APP_TITLE = "Multilingual LLM Safety Evaluation Labs";
+export const APP_TITLE = "Multilingual LLM Safety Evaluation Lab";
 
 // LocalStorage keys
 export const USER_KEY = "mini_lab_user";

@@ -1,100 +1,105 @@
-
-import React from 'react';
-import ThemeSwitcher from './ThemeSwitcher';
+import React, { useEffect, useRef, useState } from 'react';
 import { User } from '../types';
+import BrandMark from './BrandMark';
 
 interface HeaderProps {
-  title: string;
   user: User | null;
-  currentTheme: 'light' | 'dark';
-  onThemeToggle: () => void;
+  /** Clicking the lab's name goes back to the first page (the evaluation picker). */
+  onHome: () => void;
   onLogout: () => void;
-  showBack?: boolean;
-  onBack?: () => void;
   onChangePassword?: () => void;
   onOpenAccessRequests?: () => void;
-  // When provided, the title becomes a link back to the evaluation-picker screen.
-  onTitleClick?: () => void;
+  onOpenPartnerOrgs?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, user, currentTheme, onThemeToggle, onLogout, showBack, onBack, onChangePassword, onOpenAccessRequests, onTitleClick }) => {
+const navButton =
+  'px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+const menuItem =
+  'w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-left text-foreground hover:bg-muted focus:outline-none focus-visible:bg-muted';
+
+/** One header for every signed-in screen: the lab's name on the left, admin tools and the account menu on the right. */
+const Header: React.FC<HeaderProps> = ({ user, onHome, onLogout, onChangePassword, onOpenAccessRequests, onOpenPartnerOrgs }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Close on outside click or Escape; return focus to the trigger on Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setMenuOpen(false); buttonRef.current?.focus(); }
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onPointer); document.removeEventListener('keydown', onKey); };
+  }, [menuOpen]);
+
+  const run = (fn?: () => void) => () => { setMenuOpen(false); fn?.(); };
+  const isAdmin = user?.role === 'admin';
+  const initial = (user?.email?.[0] ?? '?').toUpperCase();
+
   return (
-    <header className="bg-card text-card-foreground shadow-md sticky top-0 z-50 border-b border-border">
-      <div className="container mx-auto px-4 md:px-6 py-3.5 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-           {showBack && (
-             <button 
-                onClick={onBack}
-                className="p-2 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                aria-label="Go back to lab selection"
-             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                  <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-                </svg>
-             </button>
-           )}
-           {onTitleClick ? (
-             <button
-               onClick={onTitleClick}
-               className="flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-ring rounded-md -m-1 p-1 hover:opacity-80 transition-opacity"
-               aria-label="Back to evaluation picker"
-             >
-               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-primary hidden sm:block">
-                 <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" opacity="0.3"/>
-                 <path fill="currentColor" d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8 8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm1-11h-2v4h2V7zm0 6h-2v2h2v-2z"/>
-               </svg>
-               <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-             </button>
-           ) : (
-             <>
-               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-primary hidden sm:block">
-                 <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" opacity="0.3"/>
-                 <path fill="currentColor" d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8 8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm1-11h-2v4h2V7zm0 6h-2v2h2v-2z"/>
-               </svg>
-               <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-             </>
-           )}
-        </div>
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          {user && (
-            <div className="hidden sm:flex items-center space-x-3">
-              <div className="flex items-center space-x-2 bg-secondary text-secondary-foreground px-3 py-1.5 rounded-full text-sm font-medium">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 opacity-90">
-                  <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
-                </svg>
-                <span className="truncate max-w-[150px] md:max-w-xs">{user.email}</span>
-                <span className="text-xs opacity-80">({user.role})</span>
-              </div>
-              {user.role === 'admin' && onOpenAccessRequests && (
-                <button
-                  onClick={onOpenAccessRequests}
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  Access Requests
-                </button>
-              )}
-              {onChangePassword && (
-                <button
-                  onClick={onChangePassword}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
-                >
-                  Change Password
-                </button>
-              )}
+    <header className="sticky top-0 z-40 bg-card border-b border-border">
+      <div className="max-w-7xl mx-auto h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
+        <BrandMark onClick={onHome} />
+
+        {user && (
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <nav aria-label="Admin" className="hidden md:flex items-center gap-1 mr-2">
+                {onOpenAccessRequests && <button type="button" onClick={onOpenAccessRequests} className={navButton}>Access requests</button>}
+                {onOpenPartnerOrgs && <button type="button" onClick={onOpenPartnerOrgs} className={navButton}>Partner orgs</button>}
+              </nav>
+            )}
+
+            <div className="relative" ref={menuRef}>
               <button
-                onClick={onLogout}
-                className="p-2 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                aria-label="Logout"
+                ref={buttonRef}
+                type="button"
+                onClick={() => setMenuOpen(o => !o)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label="Account menu"
+                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full border border-border hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                    <path fillRule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clipRule="evenodd" />
-                    <path fillRule="evenodd" d="M16.78 9.22a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L14.94 11H9.25a.75.75 0 010-1.5h5.69l-3.47-3.47a.75.75 0 011.06-1.06l4.25 4.25z" clipRule="evenodd" />
-                  </svg>
+                <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-semibold grid place-items-center">{initial}</span>
+                <span className="hidden sm:block max-w-[180px] truncate text-sm text-foreground">{user.email}</span>
+                <svg viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 text-muted-foreground transition-transform ${menuOpen ? 'rotate-180' : ''}`} aria-hidden="true">
+                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                </svg>
               </button>
+
+              {menuOpen && (
+                <div role="menu" className="absolute right-0 mt-2 w-64 rounded-xl border border-border bg-popover text-popover-foreground shadow-lg p-1.5">
+                  <div className="px-3 py-2.5 mb-1 border-b border-border">
+                    <p className="text-sm font-medium text-foreground truncate">{user.email}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{isAdmin ? 'Administrator' : 'Evaluator'}</p>
+                  </div>
+
+                  <button role="menuitem" type="button" onClick={run(onHome)} className={menuItem}>Your evaluations</button>
+
+                  {/* Admin tools live in the bar on wide screens and in this menu on narrow ones. */}
+                  {isAdmin && onOpenAccessRequests && (
+                    <button role="menuitem" type="button" onClick={run(onOpenAccessRequests)} className={`${menuItem} md:hidden`}>Access requests</button>
+                  )}
+                  {isAdmin && onOpenPartnerOrgs && (
+                    <button role="menuitem" type="button" onClick={run(onOpenPartnerOrgs)} className={`${menuItem} md:hidden`}>Partner orgs</button>
+                  )}
+                  {onChangePassword && (
+                    <button role="menuitem" type="button" onClick={run(onChangePassword)} className={menuItem}>Change password</button>
+                  )}
+
+                  <div className="my-1 border-t border-border" />
+                  <button role="menuitem" type="button" onClick={run(onLogout)} className={`${menuItem} text-destructive`}>Sign out</button>
+                </div>
+              )}
             </div>
-          )}
-          <ThemeSwitcher currentTheme={currentTheme} onToggle={onThemeToggle} />
-        </div>
+          </div>
+        )}
       </div>
     </header>
   );

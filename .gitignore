@@ -1,0 +1,8 @@
+node_modules/
+dist/
+env.js
+.env
+.env.*
+.vercel/
+*.pre-fix-backup
+.DS_Store

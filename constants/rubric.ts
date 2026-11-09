@@ -171,7 +171,18 @@ export const RUBRIC_DIMENSION_TO_DISPARITY_KEY: Record<string, string> = {
   tone_dignity_empathy: 'disparity_in_tone',
   non_discrimination_fairness: 'disparity_in_fairness',
   freedom_of_access_censorship: 'disparity_in_censorship',
+  // Not a Section A dimension: only used by modes without built-in criteria (see
+  // ALL_BUILT_IN_KEYS) to also drop the reasoning-process disparity question.
+  reasoning_process: 'disparity_in_reasoning_process',
 };
+
+/**
+ * Hiding all of these removes every built-in Section A dimension and every built-in Section B
+ * disparity question. Modes that score only the evaluator's own criteria (conversation, web
+ * research) store this as their hiddenBuiltInKeys, so the form, the judge and the dashboards
+ * all skip the built-in rubric.
+ */
+export const ALL_BUILT_IN_KEYS: string[] = [...RUBRIC_DIMENSIONS.map(d => d.key as string), 'reasoning_process'];
 
 /**
  * Given the built-in dimension keys removed from an evaluation, returns the matching

@@ -2,7 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { ReasoningEvaluationRecord, LanguageSpecificRubricScores, RubricDimension, LlmRubricScores } from '../types';
-import { DISPARITY_CRITERIA, RUBRIC_DIMENSIONS, AVAILABLE_MODELS, isDimensionVisibleForRecord, isDisparityKeyVisibleForRecord } from '../constants';
+import { DISPARITY_CRITERIA, RUBRIC_DIMENSIONS, isDimensionVisibleForRecord, isDisparityKeyVisibleForRecord, getModelDisplayName, LEGACY_JUDGE_MODEL, classifyModelLicense } from '../constants';
+import OtariUsagePanel from './OtariUsagePanel';
 import LoadingSpinner from './LoadingSpinner';
 import Tooltip from './Tooltip';
 import html2canvas from 'html2canvas';
@@ -454,7 +455,7 @@ const GroupedBarChart: React.FC<{
                 {models.map(modelId => (
                     <div key={modelId} className="flex items-center gap-1.5">
                         <span className="w-3 h-3 rounded-full" style={{ backgroundColor: modelColors[modelId] || modelColors.default }}></span>
-                        <span>{AVAILABLE_MODELS.find(m => m.id === modelId)?.name || modelId}</span>
+                        <span>{getModelDisplayName(modelId)}</span>
                     </div>
                 ))}
             </div>
@@ -677,6 +678,7 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
     const [drilldownData, setDrilldownData] = useState<{ title: string; evaluations: ReasoningEvaluationRecord[] } | null>(null);
     const [selectedLanguagePair, setSelectedLanguagePair] = useState<string>('All');
     const [selectedModel, setSelectedModel] = useState<string>('All');
+    const [selectedJudgeModel, setSelectedJudgeModel] = useState<string>('All');
     const [contextSortBy, setContextSortBy] = useState<'disparity' | 'english' | 'native'>('disparity');
     const [topNContexts, setTopNContexts] = useState<number>(5);
     const [contextView, setContextView] = useState<'list' | 'plot'>('list');
@@ -696,6 +698,11 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
         return ['All', ...Array.from(modelIds)];
     }, [evaluations]);
 
+    const judgeModels = useMemo(() => {
+        const ids = new Set(evaluations.map(e => e.llmJudgeModel ?? LEGACY_JUDGE_MODEL));
+        return ['All', ...Array.from(ids)];
+    }, [evaluations]);
+
     const filteredEvaluations = useMemo(() => {
         let filtered = evaluations.filter(e => {
             const pair = `${e.titleA || 'Untitled'} - ${e.titleB || 'Untitled'}`;
@@ -708,8 +715,11 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
         if (selectedModel !== 'All') {
             filtered = filtered.filter(e => e.model === selectedModel);
         }
+        if (selectedJudgeModel !== 'All') {
+            filtered = filtered.filter(e => (e.llmJudgeModel ?? LEGACY_JUDGE_MODEL) === selectedJudgeModel);
+        }
         return filtered;
-    }, [evaluations, selectedLanguagePair, selectedModel]);
+    }, [evaluations, selectedLanguagePair, selectedModel, selectedJudgeModel]);
 
     
     const getNumericScore = (key: keyof (LanguageSpecificRubricScores | LlmRubricScores), score: (LanguageSpecificRubricScores | LlmRubricScores)) => {
@@ -1170,7 +1180,7 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                 unit: 's',
                 data: modelsInView.map(modelId => ({
                     modelId,
-                    modelName: AVAILABLE_MODELS.find(m => m.id === modelId)?.name || modelId,
+                    modelName: getModelDisplayName(modelId),
                     valueA: results[modelId]?.avgGenTimeA ?? 0,
                     valueB: results[modelId]?.avgGenTimeB ?? 0,
                 }))
@@ -1180,7 +1190,7 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                 unit: '',
                 data: modelsInView.map(modelId => ({
                     modelId,
-                    modelName: AVAILABLE_MODELS.find(m => m.id === modelId)?.name || modelId,
+                    modelName: getModelDisplayName(modelId),
                     valueA: results[modelId]?.avgAnswerWordsA ?? 0,
                     valueB: results[modelId]?.avgAnswerWordsB ?? 0,
                 }))
@@ -1190,7 +1200,7 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                 unit: ' w/s',
                 data: modelsInView.map(modelId => ({
                     modelId,
-                    modelName: AVAILABLE_MODELS.find(m => m.id === modelId)?.name || modelId,
+                    modelName: getModelDisplayName(modelId),
                     valueA: results[modelId]?.avgWpsA ?? 0,
                     valueB: results[modelId]?.avgWpsB ?? 0,
                 }))
@@ -1398,7 +1408,7 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
             {drilldownData && <DrilldownModal data={drilldownData} onClose={() => setDrilldownData(null)} />}
 
             <DashboardCard title="Dashboard Actions & Filters" subtitle="Select a language pair or model to refine the data across all charts.">
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                     <div>
                         <label htmlFor="lang-pair-filter" className="text-sm font-medium text-foreground mb-1 block">Language Pair</label>
                         <select
@@ -1421,13 +1431,25 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                             className="form-select w-full p-2 border rounded-md shadow-sm bg-background border-border focus:outline-none focus:ring-2 focus:ring-ring text-sm"
                         >
                             {models.map(modelId => {
-                                const modelDef = AVAILABLE_MODELS.find(m => m.id === modelId);
                                 return (
                                     <option key={modelId} value={modelId}>
-                                        {modelId === 'All' ? 'All Models' : modelDef?.name || modelId}
+                                        {modelId === 'All' ? 'All Models' : `${getModelDisplayName(modelId)}${classifyModelLicense(modelId) === 'open-weight' ? ' (open weights)' : ''}`}
                                     </option>
                                 );
                             })}
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="judge-filter" className="text-sm font-medium text-foreground mb-1 block">LLM Judge Model</label>
+                        <select
+                            id="judge-filter"
+                            value={selectedJudgeModel}
+                            onChange={e => setSelectedJudgeModel(e.target.value)}
+                            className="form-select w-full p-2 border rounded-md shadow-sm bg-background border-border focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                        >
+                            {judgeModels.map(id => (
+                                <option key={id} value={id}>{id === 'All' ? 'All Judges' : getModelDisplayName(id)}</option>
+                            ))}
                         </select>
                     </div>
                     <div>
@@ -1569,6 +1591,8 @@ const ReasoningDashboard: React.FC<ReasoningDashboardProps> = ({ evaluations }) 
                             </div>
                          </DashboardCard>
                     )}
+
+                    <OtariUsagePanel evaluations={filteredEvaluations} />
 
                     {modelComparisonData && (
                         <DashboardCard title="Model Comparison" subtitle="Comparing performance and quality across all tested models in the current view.">
