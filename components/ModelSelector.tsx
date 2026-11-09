@@ -74,6 +74,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ label, description, selec
   };
   const totalShown = Object.values(grouped).reduce((n, g) => n + g.length, 0);
 
+  // A typed full model ID (e.g. "huggingface:swiss-ai/Apertus-70B-Instruct-2509") that the list
+  // doesn't contain can still be used: the server passes any ID to Otari, which routes it or refuses.
+  const typed = search.trim();
+  const customId = /^[\w.-]+[:/][\w./:-]+$/.test(typed) && !liveIds.has(typed) && !SUGGESTED_MODELS.some(m => m.id === typed) ? typed : null;
+
   const displayName = extraOption && selectedModel === extraOption.id ? extraOption.name : getModelDisplayName(selectedModel);
   const selectedLicense = extraOption && selectedModel === extraOption.id ? undefined : classifyModelLicense(selectedModel);
   const notInLiveList = liveListAvailable && selectedModel && !liveIds.has(selectedModel) && selectedModel !== extraOption?.id;
@@ -124,7 +129,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ label, description, selec
         </span>
       </button>
       {notInLiveList && (
-        <p className="text-xs text-amber-700 mt-1">This model is not in your organization's Otari model list — calls may be rejected.</p>
+        <p className="text-xs text-amber-700 mt-1">Not in your Otari model list. Calls may be rejected.</p>
       )}
 
       {open && (
@@ -173,7 +178,20 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ label, description, selec
                 Could not load your Otari model list ({loadError}). Showing suggested models, unverified.
               </div>
             )}
-            {!loading && totalShown === 0 && (
+            {customId && (
+              <button
+                type="button"
+                role="option"
+                aria-selected={selectedModel === customId}
+                onClick={() => handleSelect(customId)}
+                className="w-full text-left px-3 py-2.5 text-sm border-t border-border hover:bg-primary/10 text-card-foreground"
+              >
+                <span className="font-medium">Use model ID </span>
+                <span className="font-mono text-xs break-all">{customId}</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">Not in your Otari model list. Otari will reject it if it can't route it.</span>
+              </button>
+            )}
+            {!loading && totalShown === 0 && !customId && (
               <div className="px-3 py-3 text-sm text-muted-foreground">No models match your search.</div>
             )}
           </div>
