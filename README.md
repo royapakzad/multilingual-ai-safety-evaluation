@@ -3,7 +3,7 @@
 **Do AI models give people the same safe, accurate, well-sourced answer in their own language as in English?** This lab lets researchers, NGOs, UN agencies, governments and hotlines find out before they deploy a model. It shows where models fail in each language and context, and what an evaluation costs.
 
 - **Live:** https://ai-safety-evaluation-lab.vercel.app
-- **Demo:** https://www.multilingualailab.com/demo
+- **Demo:** https://www.multilingualailab.com/demo (old -- should be updated)
 - **Built with [Otari](https://otari.ai)** (Mozilla.ai's open-source LLM gateway).
 
 ## What it does
