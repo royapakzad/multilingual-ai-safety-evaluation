@@ -50,7 +50,6 @@ The site is Vite + React on Vercel, with Firebase for login and data. All model 
 1. **Otari:**
    - Add provider keys.
    - Create a `Lab default` workspace, plus one per partner organisation, each with an API key and a budget.
-   - See [OTARI.md](OTARI.md).
 2. **Vercel environment variables:**
 
    | Variable | Value |
