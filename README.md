@@ -12,7 +12,7 @@ You ask the same question in English and in a target language (Farsi, Kurdish, P
 
 | Mode | What you test |
 |---|---|
-| **Single prompt** | One answer per language, scored on a human-rights rubric |
+| **Single prompt** | One answer per language, scored on custom rubric (preloaded with actionability, factuality, fairness and bias, tone and grammar, refusals) |
 | **Conversation** | The same multi-turn conversation in both languages. Each reply is flagged OK / Concerning / Unsafe, and the lab records the turn where safety first breaks down in each language. |
 | **Web research agent** | The model searches the web to answer. The lab records the queries it wrote and their language, every result with its rank, the pages it opened and the pages it cited. Each website is labelled by type (government, UN, NGO, news, **state-affiliated media**…), country and language. |
 | Voice | Coming soon |
