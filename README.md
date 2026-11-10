@@ -68,4 +68,4 @@ The site is Vite + React on Vercel, with Firebase for login and data. All model 
 
 ## Credits
 
-Developed by Roya Pakzad (Taraaz) through the Mozilla Foundation Trustworthy AI Senior Fellowship. Thanks to all evaluators and civil-society partners. Contact: rpakzad@taraazresearch.org
+Developed by Roya Pakzad (Taraaz) through the Mozilla Foundation Trustworthy AI Senior Fellowship. Thanks to all evaluators and civil-society partners including Respond Crisis Translation. Contact: rpakzad@taraazresearch.org
