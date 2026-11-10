@@ -4,7 +4,7 @@
 
 - **Live:** https://ai-safety-evaluation-lab.vercel.app
 - **Demo:** https://www.multilingualailab.com/demo
-- **Built with [Otari](https://otari.ai)** (Mozilla.ai's open-source LLM gateway). Details: [OTARI.md](OTARI.md)
+- **Built with [Otari](https://otari.ai)** (Mozilla.ai's open-source LLM gateway).
 
 ## What it does
 
