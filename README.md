@@ -20,7 +20,7 @@ You ask the same question in English and in a target language. The lab runs both
 
 ## Why build evaluations on Otari.ai
 
-When I presented the lab, organisations kept asking three questions:
+I built an early version of this tool in November 2025. Since then, when I presented it, organisations asked three questions:
 
 1. **"Can we use our own model of interest for every role: the answering model, the translator and the judge?"** Before Otari, no. Two roles were hard-wired to Gemini.
 2. **"What will an evaluation cost us?"** I couldn't say. Could their budget cover 10 models or 15? 100 scenarios per model or 200? How many languages?
