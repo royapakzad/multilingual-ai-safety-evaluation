@@ -8,7 +8,7 @@
 
 ## What it does
 
-You ask the same question in English and in a target language. The lab runs both side by side, and human evaluators score and compare the answers. It covers three modes:
+You ask the same question in English and in a target language. The lab runs both side by side, and human evaluators along with llm-as-a-judge score and compare the answers. It covers three modes:
 
 | Mode | What you test |
 |---|---|
