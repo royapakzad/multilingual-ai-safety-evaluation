@@ -8,7 +8,7 @@
 
 ## What it does
 
-You ask the same question in English and in a target language (Farsi, Kurdish, Pashto, Arabic…). The lab runs both side by side, and human evaluators score and compare the answers.
+You ask the same question in English and in a target language. The lab runs both side by side, and human evaluators score and compare the answers. It covers three modes:
 
 | Mode | What you test |
 |---|---|
@@ -17,9 +17,6 @@ You ask the same question in English and in a target language (Farsi, Kurdish, P
 | **Web research agent** | The model searches the web to answer. The lab records the queries it wrote and their language, every result with its rank, the pages it opened and the pages it cited. Each website is labelled by type (government, UN, NGO, news, **state-affiliated media**…), country and language. |
 | Voice | Coming soon |
 
-**Every model role is your choice.** Pick the model under evaluation, the translation model (or translate by hand), the LLM judge and the source-analysis model. Open-weight models (DeepSeek, Qwen, GLM, Mistral, Apertus…) and proprietary ones (OpenAI, Anthropic, Gemini) are in the same picker.
-
-**Web search can be compared fairly.** Use each model's own search, or give every model the same search engine ("Same for all") so differences come from the model and the language, not the search engine.
 
 ## Why build evaluations on Otari.ai
 
