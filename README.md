@@ -38,42 +38,18 @@ Otari answered all three:
 | **Cost** | Not tracked | For every call the lab saves tokens, cost, provider, response time, fallback and the Otari request ID. A Cost & Efficiency dashboard and the CSV exports show them. |
 | **Evaluation modes** | Single prompt only | Single prompt, **multi-turn conversation** and a **web research agent** |
 
-### What this means for evaluation builders
-
-- Partners want to test the model they actually plan to deploy, often an open-weight model they could host themselves, next to the frontier models.
-- Without a gateway, every new provider means a new SDK, key, error format and code path; with Otari, it's one API and one key, and switching models is a dropdown. 
-- An LLM judge is a model with its own language blind spots. Locking the judge to one vendor builds that vendor's bias into every score, and a model may grade its own answers kindly; with a gateway you can run different judges on the same answers. You can check which ones agree with human annotators.
-- In web research mode, "Same for all" gives every model the same search engine through Otari, so you compare models, not search engines. Some open-weight models have no web search of their own; without a gateway, they couldn't be tested as agents at all.
-- Organisations have to decide how many models, languages and scenarios they can afford to test:
-
-> **cost ≈ models × languages × scenarios × calls per scenario × cost per call**
-
-- Otari reports the actual cost of every call, including web searches, and the lab stores it per model, language, scenario and role (answer, translation, judge).
-- A small pilot gives you the real cost per scenario. Multiply it up to plan the full study.
-- Cost also differs by language. The same question can need more tokens in under-served languages (the multilingual "token tax"), and the dashboards make that visible.
-- Each partner organisation gets its own Otari workspace and **budget cap**, so a study can't overspend, and spend reports go straight into grant and funder reporting.
-
-**Keep keys safe and partners separate.** No API keys reach the browser. Each partner organisation's calls go through its own Otari key and budget, and Otari is open source and can be self-hosted, for organisations with data-sovereignty requirements.
-
 ## Feedback for Otari
 
 **What didn't work**
 - **Open multilingual models outside Otari's default list are hard to reach.**
   - With my own Hugging Face key, Otari offered only a preselected list of 20 Hugging Face models. SwissAI's Apertus, trained on 1,000+ languages, wasn't one of them.
   - After I added it by hand, it showed as unpriced and switched off ([otari#3062](https://github.com/mozilla-ai/otari/issues/3062)).
-  - As a workaround, the lab's pickers accept any model ID.
 - **Three web search formats** (Anthropic `/messages`, OpenAI `/responses`, `otari_web_search`) needed three converters to compare models.
-- `cost_usd` is a string.
 
 **Feature requests**
-1. Open Hugging Face models without manual steps.
+1. Open Hugging Face models without manual steps (done, issue closed).
 2. One web search trace format.
-3. Same-model retry and fallback on 429.
 4. Cost reporting per language, using request metadata.
-5. `max_uses` on `otari_web_fetch`.
-6. One complete model list.
-7. A numeric `cost_usd`.
-8. Documented search coverage per language.
 
 ## Using the lab
 
