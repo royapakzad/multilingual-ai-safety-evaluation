@@ -22,6 +22,26 @@ You ask the same question in English and in a target language. The lab runs both
 
 An evaluation is a comparison. Its results only mean something if the one thing that changes is the thing you're testing: the model, the language or the judge. A gateway like [Otari](https://otari.ai) is what keeps everything else the same.
 
+When I presented the lab, organisations kept asking three questions:
+
+1. **"Can we use our own model of interest for every role: the answering model, the translator and the judge?"** Before Otari, no. Two roles were hard-wired to Gemini.
+2. **"What will an evaluation cost us?"** I couldn't say. Could their budget cover 10 models or 15? 100 scenarios per model or 200? How many languages?
+3. **"Is it safe for our team to use?"** Not really. Provider keys were built into the public website.
+
+Otari answered all three:
+
+| | Before | With Otari |
+|---|---|---|
+| **Model under evaluation** | 5 provider SDKs, 5 keys, 5 code paths | One connection. Open-weight models (DeepSeek, GLM, Qwen, Mistral, gpt-oss, Apertus) and proprietary ones (OpenAI, Anthropic, Gemini) share one picker, labelled *Open weights* or *Proprietary*. |
+| **Translation** | Always Gemini | Any model, or *Manual* for human translation. The record notes when someone edited a machine translation. |
+| **LLM judge** | Always Gemini | Any model, saved on every record. The dashboard can filter by judge and warns when a model is grading itself. |
+| **Keys** | In the public website's code | Only on the server (`api/llm.ts`), behind a login check that picks the user's organisation key |
+| **Partner organisations** | none | Each NGO, regulator or UN agency gets its own Otari workspace, key and budget. Partners don't need an Otari account. |
+| **Cost** | Not tracked | For every call the lab saves tokens, cost, provider, response time, fallback and the Otari request ID. A Cost & Efficiency dashboard and the CSV exports show them. |
+| **Evaluation modes** | Single prompt only | Single prompt, **multi-turn conversation** and a **web research agent** |
+
+### What this means for evaluation builders
+
 - Partners want to test the model they actually plan to deploy, often an open-weight model they could host themselves, next to the frontier models.
 - Without a gateway, every new provider means a new SDK, key, error format and code path; with Otari, it's one API and one key, and switching models is a dropdown. 
 - An LLM judge is a model with its own language blind spots. Locking the judge to one vendor builds that vendor's bias into every score, and a model may grade its own answers kindly; with a gateway you can run different judges on the same answers. You can check which ones agree with human annotators.
@@ -49,6 +69,37 @@ An evaluation is a comparison. Its results only mean something if the one thing 
 - **Custom criteria:** remove any built-in dimension and add your own. Web research uses Source quality, Local relevance and Citation support.
 - **Human vs LLM judge:** the judge scores the same answers, so you can see whether automated evaluation catches harms in other languages.
 - **Cost:** every call records tokens, cost, provider and latency. The dashboards compare English and target-language results and cost per model and language, including the multilingual "token tax". Everything exports to CSV.
+
+## What the web research agent reveals
+
+- **Different language, different web.** The same question in Farsi and English returns different websites, from different countries, in different languages. "Websites cited in both languages" measures the overlap.
+- **Search language.** Does a model asked in Farsi search in Farsi, English or both? Asked about Greece, DeepSeek switched to Greek for its second search.
+- **Translation shortcuts.** Some models search in English and then answer in Farsi. The answer looks local, but the sources aren't, and the user may not be able to read them.
+- **Thin coverage.** In low-resource languages, models may fall back on forums, aggregators or state-affiliated media, which can be unsafe for refugee and diaspora communities.
+- **Limits.** Source labels are AI suggestions until an annotator confirms them. Search results change between runs, so draw conclusions from many runs.
+
+## Feedback for Otari
+
+**What didn't work**
+- **Open multilingual models outside Otari's default list are hard to reach.**
+  - With my own Hugging Face key, Otari offered only a preselected list of 20 Hugging Face models. SwissAI's Apertus, trained on 1,000+ languages, wasn't one of them.
+  - After I added it by hand, it showed as unpriced and switched off ([otari#3062](https://github.com/mozilla-ai/otari/issues/3062)).
+  - As a workaround, the lab's pickers accept any model ID.
+- **Three web search formats** (Anthropic `/messages`, OpenAI `/responses`, `otari_web_search`) needed three converters to compare models.
+- **429 "Model busy"** on open-weight models, with no automatic retry. Any fallback must stay on the same model, or the comparison breaks.
+- `otari_web_fetch` rejects `max_uses`, while `otari_web_search` accepts it.
+- Own-key models were missing from `/models`; they only appeared in `/catalog/models`.
+- `cost_usd` is a string.
+
+**Feature requests**
+1. Open Hugging Face models without manual steps.
+2. One web search trace format.
+3. Same-model retry and fallback on 429.
+4. Cost reporting per language, using request metadata.
+5. `max_uses` on `otari_web_fetch`.
+6. One complete model list.
+7. A numeric `cost_usd`.
+8. Documented search coverage per language.
 
 ## Using the lab
 
