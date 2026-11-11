@@ -20,8 +20,6 @@ You ask the same question in English and in a target language. The lab runs both
 
 ## Why build evaluations on Otari.ai
 
-An evaluation is a comparison. Its results only mean something if the one thing that changes is the thing you're testing: the model, the language or the judge. A gateway like [Otari](https://otari.ai) is what keeps everything else the same.
-
 When I presented the lab, organisations kept asking three questions:
 
 1. **"Can we use our own model of interest for every role: the answering model, the translator and the judge?"** Before Otari, no. Two roles were hard-wired to Gemini.
