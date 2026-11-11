@@ -34,7 +34,7 @@ Otari answered all three:
 | **Translation** | Always Gemini | Any model, or *Manual* for human translation. The record notes when someone edited a machine translation. |
 | **LLM judge** | Always Gemini | Any model, saved on every record. The dashboard can filter by judge and warns when a model is grading itself. |
 | **Keys** | In the public website's code | Only on the server (`api/llm.ts`), behind a login check that picks the user's organisation key |
-| **Partner organisations** | none | Each NGO, regulator or UN agency gets its own Otari workspace, key and budget. Partners don't need an Otari account. |
+| **Partner organisations** | none | Each government agency, NGO, or UN agency gets its own Otari workspace, key and budget. |
 | **Cost** | Not tracked | For every call the lab saves tokens, cost, provider, response time, fallback and the Otari request ID. A Cost & Efficiency dashboard and the CSV exports show them. |
 | **Evaluation modes** | Single prompt only | Single prompt, **multi-turn conversation** and a **web research agent** |
 
