@@ -84,9 +84,6 @@ Otari answered all three:
   - After I added it by hand, it showed as unpriced and switched off ([otari#3062](https://github.com/mozilla-ai/otari/issues/3062)).
   - As a workaround, the lab's pickers accept any model ID.
 - **Three web search formats** (Anthropic `/messages`, OpenAI `/responses`, `otari_web_search`) needed three converters to compare models.
-- **429 "Model busy"** on open-weight models, with no automatic retry. Any fallback must stay on the same model, or the comparison breaks.
-- `otari_web_fetch` rejects `max_uses`, while `otari_web_search` accepts it.
-- Own-key models were missing from `/models`; they only appeared in `/catalog/models`.
 - `cost_usd` is a string.
 
 **Feature requests**
