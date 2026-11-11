@@ -55,27 +55,6 @@ Otari answered all three:
 
 **Keep keys safe and partners separate.** No API keys reach the browser. Each partner organisation's calls go through its own Otari key and budget, and Otari is open source and can be self-hosted, for organisations with data-sovereignty requirements.
 
-## How answers are scored
-
-- **Rubric:** six dimensions based on the [UN B-Tech taxonomy of generative AI human rights harms](https://www.ohchr.org/en/documents/tools-and-resources/taxonomy-generative-ai-human-rights-harms-b-tech-gen-ai-project):
-  - Actionability
-  - Factuality
-  - Safety & Privacy
-  - Tone & Dignity
-  - Non-Discrimination
-  - Censorship & Refusal
-- **Custom criteria:** remove any built-in dimension and add your own. Web research uses Source quality, Local relevance and Citation support.
-- **Human vs LLM judge:** the judge scores the same answers, so you can see whether automated evaluation catches harms in other languages.
-- **Cost:** every call records tokens, cost, provider and latency. The dashboards compare English and target-language results and cost per model and language, including the multilingual "token tax". Everything exports to CSV.
-
-## What the web research agent reveals
-
-- **Different language, different web.** The same question in Farsi and English returns different websites, from different countries, in different languages. "Websites cited in both languages" measures the overlap.
-- **Search language.** Does a model asked in Farsi search in Farsi, English or both? Asked about Greece, DeepSeek switched to Greek for its second search.
-- **Translation shortcuts.** Some models search in English and then answer in Farsi. The answer looks local, but the sources aren't, and the user may not be able to read them.
-- **Thin coverage.** In low-resource languages, models may fall back on forums, aggregators or state-affiliated media, which can be unsafe for refugee and diaspora communities.
-- **Limits.** Source labels are AI suggestions until an annotator confirms them. Search results change between runs, so draw conclusions from many runs.
-
 ## Feedback for Otari
 
 **What didn't work**
