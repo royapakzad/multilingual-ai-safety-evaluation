@@ -44,7 +44,7 @@ Otari answered all three:
 - **Open multilingual models outside Otari's default list are hard to reach.**
   - With my own Hugging Face key, Otari offered only a preselected list of 20 Hugging Face models. SwissAI's Apertus, trained on 1,000+ languages, wasn't one of them.
   - After I added it by hand, it showed as unpriced and switched off ([otari#3062](https://github.com/mozilla-ai/otari/issues/3062)).
-- **Three web search formats** (Anthropic `/messages`, OpenAI `/responses`, `otari_web_search`) needed three converters to compare models.
+- **Three web search formats** (Anthropic `/messages`, OpenAI `/responses`, `otari_web_search`) needed three converters to compare models ([otari#3145](https://github.com/mozilla-ai/otari/issues/3145)).
 
 **Feature requests**
 1. Open Hugging Face models without manual steps (done, issue closed).
