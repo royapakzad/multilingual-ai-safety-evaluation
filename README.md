@@ -22,9 +22,9 @@ You ask the same question in English and in a target language. The lab runs both
 
 I built an early version of this tool in November 2025. Since then, when I presented it, organisations asked three questions:
 
-1. **"Can we use our own model of interest for every role: the answering model, the translator and the judge?"** Before Otari, no. Two roles were hard-wired to Gemini.
-2. **"What will an evaluation cost us?"** I couldn't say. Could their budget cover 10 models or 15? 100 scenarios per model or 200? How many languages?
-3. **"Is it safe for our team to use?"** Not really. Provider keys were built into the public website.
+1. **"Can we use our own model of interest for every role: the answering model, the translator and the judge?"** 
+2. **"What will an evaluation cost us?"** 
+3. **"Is it safe for our team to use?"** 
 
 Otari answered all three:
 
