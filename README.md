@@ -21,7 +21,7 @@ You ask the same question in English and in a target language (Farsi, Kurdish, P
 
 **Web search can be compared fairly.** Use each model's own search, or give every model the same search engine ("Same for all") so differences come from the model and the language, not the search engine.
 
-## Why build evaluations on an LLM gateway
+## Why build evaluations on Otari.ai
 
 An evaluation is a comparison. Its results only mean something if the one thing that changes is the thing you're testing: the model, the language or the judge. A gateway like [Otari](https://otari.ai) is what keeps everything else the same.
 
