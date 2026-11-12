@@ -5,7 +5,7 @@
 - **Live:** https://ai-safety-evaluation-lab.vercel.app
 - **Video walkthrough** (play at 2× speed): https://drive.google.com/file/d/1fv0D0qBBmiPTJz-NnhgvS_m1QY3UBonT/view?usp=drive_link
 - **Slides:** https://drive.google.com/file/d/1aRPcjoAu1wnaRVPGMeTTuD0I-okkWvjv/view?usp=drive_link
-- **Built with [Otari](https://otari.ai)** (Mozilla.ai's open-source LLM gateway).
+
 
 ## What it does
 
