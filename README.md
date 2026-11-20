@@ -21,8 +21,9 @@ This lab lets you find out before you deploy.
 |---|---|
 | **Adopted by** | [Current AI](https://www.currentai.org)'s Alpha LLM |
 | **Presented at** | ACM Conference on Fairness, Accountability, and Transparency (FAccT) |
-| | Trust and Safety Research Conference |
-| | OHCHR RightsX Summit 2026, convened by the UN Human Rights Office (OHCHR) Innovation & Analytics Hub |
+| | UN Human Rights Office (OHCHR) RightsX Summit 2026 |
+| | Stanford University's Trust and Safety Research Conference |
+| | Mozilla Festival |
 | | Center for Democracy & Technology (CDT) |
 | | Humane Intelligence |
 
@@ -66,7 +67,7 @@ You write a scenario once. The lab translates it, runs both versions on the mode
 
 Every model role is your choice: the model under test, the translator, and the judge. Open-weight models (DeepSeek, Qwen, GLM, Mistral, gpt-oss, Apertus) and proprietary ones (OpenAI, Anthropic, Gemini) sit in the same picker. The dashboard warns you when a model is grading its own answers.
 
-## Your criteria, not ours
+## Your criteria
 
 What counts as a good answer depends on context. A health ministry, a legal aid group and a content moderation team will care about different things, so the criteria are yours to build: remove what doesn't apply, and add your own criteria with your own answer scales. Each evaluation keeps its own set.
 
