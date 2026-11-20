@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import BrandMark from './BrandMark';
 import RequestAccess from './RequestAccess';
 import DonateSection from './DonateSection';
 
@@ -21,13 +22,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSubmit, loginError }) => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
-      <div className="bg-card text-card-foreground p-8 md:p-12 rounded-xl shadow-xl w-full max-w-md transform transition-all duration-500 hover:scale-[1.02]">
+      <div className="bg-card text-card-foreground p-8 md:p-12 rounded-2xl border border-border shadow-sm w-full max-w-md">
         <div className="text-center mb-8">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-16 h-16 text-primary mx-auto mb-4">
-            <path fillRule="evenodd" d="M8 10V7a4 4 0 118 0v3h1a2 2 0 012 2v5a2 2 0 01-2 2H7a2 2 0 01-2-2v-5a2 2 0 012-2h1zm4-6a2 2 0 00-2 2v3h4V7a2 2 0 00-2-2z" clipRule="evenodd" />
-          </svg>
-          <h1 className="text-3xl font-bold text-foreground">Multilingual AI Safety Evaluation Laboratory</h1>
-          <p className="text-muted-foreground mt-2">
+          <BrandMark size="hero" />
+          <p className="text-muted-foreground mt-3 text-[15px]">
             {isRequestingAccess ? 'Tell us a bit about your intended use.' : 'Enter your credentials to continue.'}
           </p>
         </div>

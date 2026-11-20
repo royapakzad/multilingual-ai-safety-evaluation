@@ -35,7 +35,7 @@ const DonateSection: React.FC = () => {
       >
         Donate
       </a>
-      <p>Donations only go toward API usage and maintenance costs — not compensation.</p>
+      <p>Donations only go toward API usage and maintenance costs.</p>
     </div>
   );
 };

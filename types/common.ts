@@ -3,7 +3,10 @@
 /**
  * Defines the supported LLM providers.
  */
-export type ProviderType = 'gemini' | 'openai' | 'mistral' | 'openrouter' | 'huggingface';
+export type ProviderType = 'otari' | 'gemini' | 'openai' | 'mistral' | 'openrouter' | 'huggingface';
+
+/** Whether a model's weights are openly released. Drives grouping/badges in the model pickers. */
+export type ModelLicense = 'open-weight' | 'proprietary' | 'unknown';
 
 /**
  * Represents a single chat message in the UI, with optional error state.

@@ -9,24 +9,42 @@ import DOMPurify from 'dompurify';
 import {
     User, ReasoningEvaluationRecord, LLMModelType,
     LanguageSpecificRubricScores, HarmDisparityMetrics,
-    VerifiableEntity, RubricDimension, CsvScenario, LlmEvaluation, CustomCriterionScore
+    VerifiableEntity, RubricDimension, CsvScenario, LlmEvaluation, CustomCriterionScore,
+    LlmCallUsage, GatewayWorkspace
 } from '../types';
 import {
-    EVALUATIONS_KEY, AVAILABLE_MODELS, REASONING_SYSTEM_INSTRUCTION,
+    EVALUATIONS_KEY, REASONING_SYSTEM_INSTRUCTION,
     INITIAL_LANGUAGE_SPECIFIC_RUBRIC_SCORES, INITIAL_HARM_DISPARITY_METRICS,
     AVAILABLE_NATIVE_LANGUAGES, RUBRIC_DIMENSIONS, HARM_SCALE, YES_NO_UNSURE_OPTIONS, DISPARITY_CRITERIA,
-    HIDDEN_BUILT_IN_CRITERIA_KEY_PREFIX, CUSTOM_CRITERIA_TEMPLATE_KEY_PREFIX
+    HIDDEN_BUILT_IN_CRITERIA_KEY_PREFIX, CUSTOM_CRITERIA_TEMPLATE_KEY_PREFIX,
+    DEFAULT_EVALUATED_MODEL, DEFAULT_TRANSLATION_MODEL, DEFAULT_JUDGE_MODEL, LEGACY_JUDGE_MODEL, getModelDisplayName
 } from '../constants';
-import * as config from '../env.js';
 import LoadingSpinner from './LoadingSpinner';
 import ModelSelector from './ModelSelector';
 import EvaluationForm from './EvaluationForm';
 import ReasoningDashboard from './ReasoningDashboard'; 
 import Tooltip from './Tooltip';
-import { generateLlmResponse, translateText, evaluateWithLlm } from '../services/llmService';
+import { generateLlmResponse, translateText, evaluateWithLlm, fetchGatewayWorkspace } from '../services/llmService';
 import { analyzeTextResponse, countTextUnits, getCountUnitForLanguage } from '../services/textAnalysisService';
 import * as db from '../services/databaseService';
 import EvaluationComparison from './EvaluationComparison';
+import { ModeBadge } from './EvaluationModes';
+
+// Translation-picker option meaning "no machine translation — the evaluator writes prompt B".
+// Also recorded as a record's translationModel when a machine translation was edited by hand.
+const MANUAL_TRANSLATION = 'manual';
+
+// A model choice remembered in this browser across sessions.
+const usePersistedModel = (storageKey: string, fallback: string) => {
+  const [value, setValue] = useState<string>(() => {
+    try { return localStorage.getItem(storageKey) || fallback; } catch { return fallback; }
+  });
+  const set = useCallback((next: string) => {
+    setValue(next);
+    try { localStorage.setItem(storageKey, next); } catch { /* storage unavailable */ }
+  }, [storageKey]);
+  return [value, set] as const;
+};
 
 // --- HELPER COMPONENTS ---
 
@@ -48,7 +66,8 @@ const ReasoningResponseCard: React.FC<{
   // Japanese, Thai, Khmer, Lao and Burmese are measured in characters since their scripts
   // don't use whitespace between words, so a "word" count would be meaningless for them.
   countUnit?: 'words' | 'characters';
-}> = ({ title, response, reasoning, isLoading, generationTime, answerWordCount, reasoningWordCount, countUnit = 'words' }) => (
+  usage?: LlmCallUsage | null;
+}> = ({ title, response, reasoning, isLoading, generationTime, answerWordCount, reasoningWordCount, countUnit = 'words', usage }) => (
     <div className="bg-card text-card-foreground p-6 rounded-xl shadow-md border border-border flex-1 min-h-[300px] flex flex-col">
         <div className="flex justify-between items-start mb-3.5 border-b border-border pb-3">
             <h3 className="text-lg font-semibold text-foreground flex items-center">
@@ -71,6 +90,13 @@ const ReasoningResponseCard: React.FC<{
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={countUnit === 'characters' ? 'Answer Character Count (this script has no word boundaries)' : 'Answer Word Count'}>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-primary/70"><path d="M5.75 2.75a.75.75 0 00-1.5 0v14.5a.75.75 0 001.5 0V2.75z" /><path d="M9.5 2.75a.75.75 0 00-1.5 0v14.5a.75.75 0 001.5 0V2.75z" /><path d="M13.25 2.75a.75.75 0 00-1.5 0v14.5a.75.75 0 001.5 0V2.75z" /><path d="M17 6.5a.75.75 0 01.75.75v6.5a.75.75 0 01-1.5 0v-6.5A.75.75 0 0117 6.5z" /></svg>
                         <span>{answerWordCount} answer {countUnit === 'characters' ? 'characters' : 'words'}</span>
+                    </div>
+                )}
+                {usage && (usage.totalTokens != null || usage.costUsd != null) && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={`Reported by Otari${usage.requestId ? ` · request ${usage.requestId}` : ''}${usage.provider ? ` · served by ${usage.provider}` : ''}`}>
+                        <span>{usage.totalTokens ?? '?'} tokens</span>
+                        {usage.costUsd != null && <span>· ${usage.costUsd.toFixed(5)}</span>}
+                        {usage.fallback && <span className="text-amber-700">· fallback</span>}
                     </div>
                 )}
             </div>
@@ -193,7 +219,18 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
   const [translationError, setTranslationError] = useState<string | null>(null);
   
   // Setup State
-  const [selectedModel, setSelectedModel] = useState<LLMModelType>(AVAILABLE_MODELS[0].id);
+  // The three model roles — each selectable, each remembered in this browser.
+  const [selectedModel, setSelectedModel] = usePersistedModel('mlal.model.evaluated', DEFAULT_EVALUATED_MODEL);
+  const [translationModel, setTranslationModel] = usePersistedModel('mlal.model.translation', DEFAULT_TRANSLATION_MODEL);
+  const [judgeModel, setJudgeModel] = usePersistedModel('mlal.model.judge', DEFAULT_JUDGE_MODEL);
+
+  // Otari accounting for the current run
+  const [usageA, setUsageA] = useState<LlmCallUsage | null>(null);
+  const [usageB, setUsageB] = useState<LlmCallUsage | null>(null);
+  const [translationUsage, setTranslationUsage] = useState<LlmCallUsage | null>(null);
+  // The exact text the translation model produced, to detect later manual edits of prompt B.
+  const [lastMachineTranslation, setLastMachineTranslation] = useState<string | null>(null);
+  const [workspace, setWorkspace] = useState<GatewayWorkspace | null>(null);
   const [titleA, setTitleA] = useState('English');
   const [promptA, setPromptA] = useState('');
   const [requestReasoningA, setRequestReasoningA] = useState(false);
@@ -317,6 +354,11 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     fetchEvaluations();
   }, [currentUser]);
 
+  // Which Otari workspace (partner org) this user's calls are billed to
+  useEffect(() => {
+    fetchGatewayWorkspace().then(setWorkspace).catch(err => console.warn('Could not load Otari workspace:', err));
+  }, [currentUser]);
+
   // Cooldown timer
   useEffect(() => {
     if (cooldown > 0) {
@@ -327,6 +369,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
 
   const resetResponsesAndScores = () => {
     setRawResponseA(''); setRawResponseB('');
+    setUsageA(null); setUsageB(null);
     setResponseA(null); setResponseB(null);
     setNativeCountUnit(getCountUnitForLanguage(selectedNativeLanguageCode));
     // Seed custom criteria/disparities from this evaluation's running template
@@ -368,7 +411,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     if (!promptA.trim()) {
         setPromptB(''); // Clear native prompt if English prompt is empty
     }
-    if (!promptA.trim() || !selectedNativeLanguageCode) {
+    if (!promptA.trim() || !selectedNativeLanguageCode || translationModel === MANUAL_TRANSLATION) {
       if (translationDebounceTimer.current) clearTimeout(translationDebounceTimer.current);
       return;
     }
@@ -380,12 +423,16 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
         setIsTranslating(true);
         setTranslationError(null);
         try {
-          const translated = await translateText(promptA, 'en', selectedNativeLanguageCode);
-          setPromptB(translated);
+          const translated = await translateText(promptA, 'en', selectedNativeLanguageCode, translationModel);
+          setPromptB(translated.text);
+          setLastMachineTranslation(translated.text);
+          setTranslationUsage(translated.usage);
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Unknown translation error";
           setTranslationError(`Translation failed: ${msg}. Please enter manually.`);
           setPromptB('');
+          setLastMachineTranslation(null);
+          setTranslationUsage(null);
         } finally {
           setIsTranslating(false);
         }
@@ -394,7 +441,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
      return () => {
         if (translationDebounceTimer.current) clearTimeout(translationDebounceTimer.current);
      }
-  }, [promptA, selectedNativeLanguageCode]);
+  }, [promptA, selectedNativeLanguageCode, translationModel]);
 
 
   const parseReasoningAndAnswer = (responseText: string): { reasoning: string | null, answer: string } => {
@@ -450,13 +497,15 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     
     try {
         const startTimeA = performance.now();
-        const resA = await generateLlmResponse(promptA, selectedModel, configA);
+        const { text: resA, usage: runUsageA } = await generateLlmResponse(promptA, selectedModel, configA);
+        setUsageA(runUsageA);
         const endTimeA = performance.now();
         const genTimeASeconds = (endTimeA - startTimeA) / 1000;
         setGenerationTimeA(genTimeASeconds);
         
         const startTimeB = performance.now();
-        const resB = await generateLlmResponse(promptB, selectedModel, configB);
+        const { text: resB, usage: runUsageB } = await generateLlmResponse(promptB, selectedModel, configB);
+        setUsageB(runUsageB);
         const endTimeB = performance.now();
         const genTimeBSeconds = (endTimeB - startTimeB) / 1000;
         setGenerationTimeB(genTimeBSeconds);
@@ -503,8 +552,8 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     // Set editing state
     setEditingEvaluationId(recordToEdit.id);
 
-    // Populate all form fields
-    setSelectedModel(recordToEdit.model);
+    // Populate all form fields. The record keeps its original model (responses are not
+    // regenerated on edit), so the persisted model pickers are deliberately left untouched.
     
     const langInfo = AVAILABLE_NATIVE_LANGUAGES.find(l => recordToEdit.languagePair.includes(l.name));
     setSelectedNativeLanguageCode(langInfo?.code || '');
@@ -538,6 +587,11 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     setWordsPerSecondB(recordToEdit.wordsPerSecondB ?? null);
     // Older records predate this field — 'words' is what they were always counted in.
     setNativeCountUnit(recordToEdit.nativeCountUnit ?? 'words');
+    // Otari accounting (absent on records from before the Otari migration)
+    setUsageA(recordToEdit.usageA ?? null);
+    setUsageB(recordToEdit.usageB ?? null);
+    setTranslationUsage(recordToEdit.translationUsage ?? null);
+    setLastMachineTranslation(recordToEdit.translationModel && recordToEdit.translationModel !== MANUAL_TRANSLATION ? recordToEdit.promptB : null);
     
     // Evaluation scores and notes
     setCurrentScoresA(recordToEdit.humanScores.english);
@@ -574,12 +628,23 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
         scenarioId, scenarioCategory,
         scenarioContext: currentScenarioContext,
         languagePair: `English - ${langInfo?.name || "N/A"}`,
-        model: selectedModel,
+        model: existingRecord?.model ?? selectedModel,
         titleA, promptA, reasoningRequestedA: requestReasoningA, rawResponseA, reasoningA, responseA,
         reasoningWordCountA, answerWordCountA, generationTimeSecondsA: generationTimeA, wordsPerSecondA,
         titleB, promptB, reasoningRequestedB: requestReasoningB, rawResponseB, reasoningB, responseB,
         reasoningWordCountB, answerWordCountB, generationTimeSecondsB: generationTimeB, wordsPerSecondB,
         nativeCountUnit,
+        // When editing, keep the original run's accounting; responses are not regenerated.
+        translationModel: isUpdating ? (existingRecord?.translationModel ?? null)
+            : (lastMachineTranslation !== null && promptB === lastMachineTranslation ? translationModel : MANUAL_TRANSLATION),
+        translationUsage: isUpdating ? (existingRecord?.translationUsage ?? null)
+            : (lastMachineTranslation !== null && promptB === lastMachineTranslation ? translationUsage : null),
+        usageA: isUpdating ? (existingRecord?.usageA ?? null) : usageA,
+        usageB: isUpdating ? (existingRecord?.usageB ?? null) : usageB,
+        judgeUsage: existingRecord?.judgeUsage ?? null,
+        orgId: existingRecord?.orgId ?? workspace?.orgId ?? null,
+        workspaceLabel: existingRecord?.workspaceLabel ?? workspace?.label ?? null,
+        llmJudgeModel: existingRecord ? (existingRecord.llmJudgeModel ?? LEGACY_JUDGE_MODEL) : judgeModel,
         humanScores: {
             english: currentScoresA,
             native: currentScoresB,
@@ -621,8 +686,8 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
             (async () => {
                 let finalRecord = { ...savedRecord }; // Use the actual saved record with correct ID
                 try {
-                    const llmScores = await evaluateWithLlm(savedRecord); // Use savedRecord, not recordData
-                    finalRecord = { ...finalRecord, llmScores, llmEvaluationStatus: 'completed', llmEvaluationError: null };
+                    const judged = await evaluateWithLlm(savedRecord, judgeModel); // Use savedRecord, not recordData
+                    finalRecord = { ...finalRecord, llmScores: judged.evaluation, judgeUsage: judged.usage, llmJudgeModel: judgeModel, llmEvaluationStatus: 'completed', llmEvaluationError: null };
                 } catch (err) {
                     console.error("LLM Evaluation Failed:", err);
                     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -718,17 +783,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
 
   const isRunExperimentDisabled = () => {
     if (isLoading || cooldown > 0 || isTranslating) return true;
-    const c = config as any;
-    if (selectedModel.startsWith('openrouter/')) {
-      if (!c.OPENROUTER_API_KEY || c.OPENROUTER_API_KEY === "YOUR_OPENROUTER_API_KEY_HERE" || c.OPENROUTER_API_KEY === "") return true;
-    } else {
-      const modelInfo = AVAILABLE_MODELS.find(m => m.id === selectedModel);
-      if (modelInfo) {
-        if (modelInfo.provider === 'gemini' && (!config.API_KEY || (config.API_KEY as string) === "YOUR_GOOGLE_GEMINI_API_KEY_HERE")) return true;
-        if (modelInfo.provider === 'openai' && (!config.OPENAI_API_KEY || (config.OPENAI_API_KEY as string) === "YOUR_OPENAI_API_KEY_HERE")) return true;
-        if (modelInfo.provider === 'mistral' && (!c.MISTRAL_API_KEY || c.MISTRAL_API_KEY === "YOUR_MISTRAL_API_KEY_HERE")) return true;
-      }
-    }
+    if (!selectedModel) return true;
     return !promptA.trim() || !promptB.trim();
   };
 
@@ -825,14 +880,17 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
     }
     
     const flattenedData = dataToExport.map(row => {
-        const { humanScores, llmScores, ...rest } = row;
+        const { humanScores, llmScores, usageA, usageB, translationUsage, judgeUsage, ...rest } = row;
+        // Otari per-call accounting → usageA_costUsd, judgeUsage_totalTokens, … columns
+        const flatUsage = Object.entries({ usageA, usageB, translationUsage, judgeUsage })
+            .reduce((acc, [name, u]) => (u ? { ...acc, ...flattenObject(u, name) } : acc), {} as Record<string, any>);
         const flatHumanScores = humanScores ? { ...flattenObject(humanScores.english, 'humanScores_A'), ...flattenObject(humanScores.native, 'humanScores_B'), ...flattenObject(humanScores.disparity, 'humanScores_disparity') } : {};
         const flatLlmScores = llmScores ? { ...flattenObject(llmScores.english, 'llmScores_A'), ...flattenObject(llmScores.native, 'llmScores_B'), ...flattenObject(llmScores.disparity, 'llmScores_disparity') } : {};
 
-        return { ...rest, ...flatHumanScores, ...flatLlmScores };
+        return { ...rest, llmJudgeModel: row.llmJudgeModel ?? LEGACY_JUDGE_MODEL, ...flatUsage, ...flatHumanScores, ...flatLlmScores };
     });
 
-    const allHeaders = new Set<string>(['id', 'timestamp', 'userEmail', 'labType', 'scenarioId', 'scenarioCategory', 'scenarioContext', 'languagePair', 'model', 'titleA', 'promptA', 'reasoningRequestedA', 'reasoningWordCountA', 'answerWordCountA', 'generationTimeSecondsA', 'wordsPerSecondA', 'titleB', 'promptB', 'reasoningRequestedB', 'reasoningWordCountB', 'answerWordCountB', 'generationTimeSecondsB', 'wordsPerSecondB', 'notes', 'isFlaggedForReview', 'rawResponseA', 'reasoningA', 'responseA', 'rawResponseB', 'reasoningB', 'responseB', 'llmEvaluationStatus', 'llmEvaluationError']);
+    const allHeaders = new Set<string>(['id', 'timestamp', 'userEmail', 'labType', 'scenarioId', 'scenarioCategory', 'scenarioContext', 'languagePair', 'model', 'titleA', 'promptA', 'reasoningRequestedA', 'reasoningWordCountA', 'answerWordCountA', 'generationTimeSecondsA', 'wordsPerSecondA', 'titleB', 'promptB', 'reasoningRequestedB', 'reasoningWordCountB', 'answerWordCountB', 'generationTimeSecondsB', 'wordsPerSecondB', 'notes', 'isFlaggedForReview', 'rawResponseA', 'reasoningA', 'responseA', 'rawResponseB', 'reasoningB', 'responseB', 'llmEvaluationStatus', 'llmEvaluationError', 'llmJudgeModel', 'translationModel', 'orgId', 'workspaceLabel']);
     flattenedData.forEach(row => Object.keys(row).forEach(header => allHeaders.add(header)));
     const headers = Array.from(allHeaders);
     
@@ -889,6 +947,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Evaluation</span>
             <span className="font-bold text-foreground text-base">{evaluationName}</span>
+            <ModeBadge mode="single-turn" />
           </div>
           <button
             onClick={onLeaveEvaluation}
@@ -903,7 +962,33 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
         <section className="bg-card text-card-foreground p-6 sm:p-8 rounded-xl shadow-md border border-border">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6 pb-4 border-b border-border">1. Experiment Setup</h2>
           <div className="space-y-6">
-            <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <ModelSelector
+                label="Model under evaluation"
+                description="Answers the English and translated prompts."
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+              />
+              <ModelSelector
+                label="Translation model"
+                description="Translates the English prompt into the target language."
+                selectedModel={translationModel}
+                onModelChange={setTranslationModel}
+                extraOption={{ id: MANUAL_TRANSLATION, name: 'Manual — I will write the translation myself' }}
+              />
+              <ModelSelector
+                label="LLM-as-a-judge model"
+                description="Scores both responses with the same rubric you use."
+                selectedModel={judgeModel}
+                onModelChange={setJudgeModel}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              All three models are called through <a href="https://otari.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Otari</a>
+              {workspace ? <> and billed to the <span className="font-semibold text-foreground">{workspace.label}</span> workspace</> : null}.
+              {' '}Tokens, cost and provider routing are recorded with every evaluation.
+              {selectedModel === judgeModel && <span className="text-amber-700"> Note: the judge is the same model being evaluated — it may grade itself leniently.</span>}
+            </p>
              <div className="space-y-4 pt-4 border-t border-border">
                  <div className="flex items-center space-x-4">
                     <h3 className="text-md font-semibold text-foreground">Scenario Input Method</h3>
@@ -956,6 +1041,14 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                     </select>
                     {isTranslating && <div className='text-sm text-primary flex items-center gap-2'><LoadingSpinner size="sm"/> Translating...</div>}
                     {translationError && <p className="text-xs text-destructive mt-1">{translationError}</p>}
+                    {translationModel === MANUAL_TRANSLATION && selectedNativeLanguageCode && (
+                        <p className="text-xs text-muted-foreground mt-1">Manual translation selected — write the {AVAILABLE_NATIVE_LANGUAGES.find(l => l.code === selectedNativeLanguageCode)?.name} prompt in column B.</p>
+                    )}
+                    {translationModel !== MANUAL_TRANSLATION && lastMachineTranslation !== null && promptB === lastMachineTranslation && !isTranslating && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Translated by {getModelDisplayName(translationModel)}{translationUsage?.costUsd != null ? ` · $${translationUsage.costUsd.toFixed(5)}` : ''}. Edits you make in column B are recorded as a manual translation.
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -976,8 +1069,8 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
             <section className="mt-10">
                 <h2 className="text-xl sm:text-2xl font-bold text-center text-foreground mb-8">2. LLM Responses</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                    <ReasoningResponseCard title={titleA} response={responseA} reasoning={reasoningA} isLoading={isLoading && !responseA} generationTime={generationTimeA} answerWordCount={answerWordCountA} reasoningWordCount={reasoningWordCountA} />
-                    <ReasoningResponseCard title={titleB} response={responseB} reasoning={reasoningB} isLoading={isLoading && !responseB} generationTime={generationTimeB} answerWordCount={answerWordCountB} reasoningWordCount={reasoningWordCountB} countUnit={nativeCountUnit}/>
+                    <ReasoningResponseCard title={titleA} response={responseA} reasoning={reasoningA} isLoading={isLoading && !responseA} generationTime={generationTimeA} answerWordCount={answerWordCountA} reasoningWordCount={reasoningWordCountA} usage={usageA} />
+                    <ReasoningResponseCard title={titleB} response={responseB} reasoning={reasoningB} isLoading={isLoading && !responseB} generationTime={generationTimeB} answerWordCount={answerWordCountB} reasoningWordCount={reasoningWordCountB} countUnit={nativeCountUnit} usage={usageB}/>
                 </div>
             </section>
         )}
@@ -1108,7 +1201,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                                 <summary className="px-6 py-5 cursor-pointer list-none flex justify-between items-center hover:bg-muted/60">
                                   <div className="flex-grow">
                                       <h3 className="text-lg font-semibold text-primary">{ev.isFlaggedForReview && '🚩 '}{ev.titleA} vs. {ev.titleB}</h3>
-                                      <p className="text-xs text-muted-foreground mt-1">Model: {AVAILABLE_MODELS.find(m => m.id === ev.model)?.name || ev.model} | Evaluator: {ev.userEmail} | {new Date(ev.timestamp).toLocaleString()}</p>
+                                      <p className="text-xs text-muted-foreground mt-1">Model: {getModelDisplayName(ev.model)} | Judge: {getModelDisplayName(ev.llmJudgeModel ?? LEGACY_JUDGE_MODEL)} | Evaluator: {ev.userEmail} | {new Date(ev.timestamp).toLocaleString()}</p>
                                   </div>
                                   <div className="ml-4 flex-shrink-0 flex items-center gap-4">
                                      {ev.llmEvaluationStatus === 'pending' && <Tooltip content="LLM evaluation in progress..."><LoadingSpinner size="sm" color="text-primary" /></Tooltip>}
@@ -1173,7 +1266,7 @@ const ReasoningLab: React.FC<ReasoningLabProps> = ({ currentUser, evaluationName
                       <summary className="px-6 py-5 cursor-pointer list-none flex justify-between items-center hover:bg-muted/60">
                         <div className="flex-grow">
                             <h3 className="text-lg font-semibold text-primary">{ev.isFlaggedForReview && '🚩 '}{ev.titleA} vs. {ev.titleB}</h3>
-                            <p className="text-xs text-muted-foreground mt-1">Model: {AVAILABLE_MODELS.find(m => m.id === ev.model)?.name || ev.model} | Evaluator: {ev.userEmail} | {new Date(ev.timestamp).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Model: {getModelDisplayName(ev.model)} | Judge: {getModelDisplayName(ev.llmJudgeModel ?? LEGACY_JUDGE_MODEL)} | Evaluator: {ev.userEmail} | {new Date(ev.timestamp).toLocaleString()}</p>
                         </div>
                         <div className="ml-4 flex-shrink-0 flex items-center gap-4">
                            {ev.llmEvaluationStatus === 'pending' && <Tooltip content="LLM evaluation in progress..."><LoadingSpinner size="sm" color="text-primary" /></Tooltip>}

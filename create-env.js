@@ -1,27 +1,23 @@
 // create-env.js
 const fs = require('fs');
 
-// This script generates the env.js file from environment variables
-// provided by the hosting platform (like Vercel).
+// Generates env.js — the ONLY environment values bundled into the browser app.
+//
+// IMPORTANT: never add secrets here. Anything written to env.js ships in the public JavaScript
+// bundle and can be read by anyone who opens the site. LLM access keys (Otari) are read
+// server-side only, by the /api/llm gateway (api/llm.ts), from these Vercel env vars:
+//   OTARI_KEY_DEFAULT, OTARI_KEY_<ORG_ID>, OTARI_BASE_URL (optional)
 const envContent = `
-// This file is auto-generated during the build process
-// and should not be committed to version control.
+// This file is auto-generated during the build process and should not be committed.
+// It intentionally contains no secrets — see create-env.js.
 
-export const API_KEY = "${process.env.API_KEY || ''}";
-export const OPENAI_API_KEY = "${process.env.OPENAI_API_KEY || ''}";
-export const MISTRAL_API_KEY = "${process.env.MISTRAL_API_KEY || ''}";
-export const OPENROUTER_API_KEY = "${process.env.OPENROUTER_API_KEY || ''}";
-export const HUGGINGFACE_API_KEY = "${process.env.HUGGINGFACE_API_KEY || ''}";
-
-// Admin credentials for production are set via environment variables
-export const ADMIN_EMAIL = "${process.env.ADMIN_EMAIL || ''}";
-export const ADMIN_PASSWORD = "${process.env.ADMIN_PASSWORD || ''}";
+export const LLM_GATEWAY = "otari";
 `;
 
 try {
   fs.writeFileSync('./env.js', envContent);
-  console.log('Successfully created env.js from environment variables.');
+  console.log('Successfully created env.js (no secrets; LLM keys stay server-side).');
 } catch (err) {
   console.error('Failed to create env.js:', err);
-  process.exit(1); // Exit with an error code
+  process.exit(1);
 }

@@ -1,6 +1,6 @@
 // types/reasoning.ts
 
-import { LLMModelType, LanguageSpecificRubricScores, HarmDisparityMetrics } from './';
+import { LLMModelType, LanguageSpecificRubricScores, HarmDisparityMetrics, LlmCallUsage } from './';
 import { LlmEvaluation } from './llm-judge';
 
 /**
@@ -71,7 +71,20 @@ export interface ReasoningEvaluationRecord {
   
   isFlaggedForReview?: boolean;
 
+  // Otari gateway accounting (absent on records created before the Otari migration).
+  // Which model translated prompt A into prompt B ('manual' if the evaluator typed/edited it).
+  translationModel?: string | null;
+  translationUsage?: LlmCallUsage | null;
+  usageA?: LlmCallUsage | null;   // model under evaluation, English prompt
+  usageB?: LlmCallUsage | null;   // model under evaluation, native-language prompt
+  judgeUsage?: LlmCallUsage | null;
+  // Partner org (Otari workspace) this record's calls were billed to.
+  orgId?: string | null;
+  workspaceLabel?: string | null;
+
   // LLM as Judge
+  // Judge model used. Absent on older records, which were all judged by 'gemini/gemini-2.5-flash'.
+  llmJudgeModel?: string;
   llmScores?: LlmEvaluation;
   llmEvaluationStatus: 'not_started' | 'pending' | 'completed' | 'failed';
   llmEvaluationError?: string;

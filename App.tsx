@@ -1,56 +1,31 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { User, Theme } from './types';
-import {
-    USER_KEY,
-    THEME_KEY, APP_TITLE
-} from './constants';
-import * as config from './env.js'; // Import API keys from env.js
+import { User, EvaluationMode } from './types';
+import { THEME_KEY, APP_TITLE } from './constants';
 import { signIn, signOut, onAuthStateChange, AuthState } from './services/authService';
 import Login from './components/PasswordGate';
 import Header from './components/Header';
 import ApiKeyWarning from './components/ApiKeyWarning';
 import ReasoningLab from './components/ReasoningLab';
 import EvaluationLobby from './components/EvaluationLobby';
+import MultiTurnLab from './components/MultiTurnLab';
+import ResearchLab from './components/ResearchLab';
 import ChangePassword from './components/ChangePassword';
 import AccessRequestsPanel from './components/AccessRequestsPanel';
+import PartnerOrgsPanel from './components/PartnerOrgsPanel';
 
 const App: React.FC = () => {
   // Core App State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [theme, setTheme] = useState<Theme>('light');
-  const [isAnyApiKeyMissingOrPlaceholder, setIsAnyApiKeyMissingOrPlaceholder] = useState<boolean>(false);
-  const [evaluationName, setEvaluationName] = useState<string | null>(null);
+  // The open evaluation: its name and the mode it was created in. null = the evaluations list.
+  const [evaluation, setEvaluation] = useState<{ name: string; mode: EvaluationMode } | null>(null);
+  const leaveEvaluation = () => setEvaluation(null);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAccessRequests, setShowAccessRequests] = useState(false);
-
-  // Check for API Keys on mount
-  useEffect(() => {
-    const c = config as any;
-    const geminiKeyMissing = !c.API_KEY || c.API_KEY === "YOUR_GOOGLE_GEMINI_API_KEY_HERE" || c.API_KEY === "";
-    const openaiKeyMissing = !c.OPENAI_API_KEY || c.OPENAI_API_KEY === "YOUR_OPENAI_API_KEY_HERE" || c.OPENAI_API_KEY === "";
-    const mistralKeyMissing = !c.MISTRAL_API_KEY || c.MISTRAL_API_KEY === "YOUR_MISTRAL_API_KEY_HERE" || c.MISTRAL_API_KEY === "";
-    const openrouterKeyMissing = !c.OPENROUTER_API_KEY || c.OPENROUTER_API_KEY === "YOUR_OPENROUTER_API_KEY_HERE" || c.OPENROUTER_API_KEY === "";
-
-    // Warn if Gemini is missing (needed for translation + LLM-as-judge)
-    // or if no model provider is configured at all
-    const noModelProvider = openaiKeyMissing && mistralKeyMissing && openrouterKeyMissing;
-    if (geminiKeyMissing || noModelProvider) {
-      setIsAnyApiKeyMissingOrPlaceholder(true);
-      console.warn("One or more required API keys are missing in env.js. Some features may be unavailable.");
-    } else {
-      setIsAnyApiKeyMissingOrPlaceholder(false);
-    }
-  }, []);
-  
-  // Theme management - Force light mode only
-  useEffect(() => {
-    // Always use light theme
-    setTheme('light');
-  }, []);
+  const [showPartnerOrgs, setShowPartnerOrgs] = useState(false);
 
   useEffect(() => {
     // Force light mode
@@ -72,11 +47,6 @@ const App: React.FC = () => {
 
     return unsubscribe; // Clean up listener on component unmount
   }, []);
-
-  // Theme toggle disabled - always light mode
-  const toggleTheme = () => {
-    // Do nothing - theme is locked to light mode
-  };
 
   const handleLoginSubmit = async (email: string, password: string) => {
     setLoginError(null);
@@ -111,52 +81,50 @@ const App: React.FC = () => {
 
   if (!currentUser) return <Login onLoginSubmit={handleLoginSubmit} loginError={loginError} />;
 
-  if (!evaluationName) {
-    return (
-      <>
-        {isAnyApiKeyMissingOrPlaceholder && <ApiKeyWarning />}
-        <EvaluationLobby
-          currentUser={currentUser}
-          onEnter={setEvaluationName}
-          onLogout={handleLogout}
-          onChangePassword={() => setShowChangePassword(true)}
-          onOpenAccessRequests={() => setShowAccessRequests(true)}
-        />
-        {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
-        {showAccessRequests && <AccessRequestsPanel onClose={() => setShowAccessRequests(false)} />}
-      </>
-    );
-  }
+  // The lab's name is the home link: from inside an evaluation it returns to the picker;
+  // on the picker itself it just scrolls back to the top.
+  const goHome = () => {
+    if (evaluation) setEvaluation(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {isAnyApiKeyMissingOrPlaceholder && <ApiKeyWarning />}
+      <ApiKeyWarning />
       <Header
-        title={APP_TITLE}
         user={currentUser}
-        currentTheme={theme}
-        onThemeToggle={toggleTheme}
+        onHome={goHome}
         onLogout={handleLogout}
-        showBack={false}
         onChangePassword={() => setShowChangePassword(true)}
         onOpenAccessRequests={() => setShowAccessRequests(true)}
-        onTitleClick={() => setEvaluationName(null)}
+        onOpenPartnerOrgs={() => setShowPartnerOrgs(true)}
       />
 
-      <main className="flex-grow container mx-auto p-4 sm:p-6 md:p-8" aria-live="polite">
-        <ReasoningLab
-          currentUser={currentUser}
-          evaluationName={evaluationName}
-          onLeaveEvaluation={() => setEvaluationName(null)}
-        />
-      </main>
+      {evaluation ? (
+        <main className="flex-grow w-full max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8" aria-live="polite">
+          {/* Each mode has its own lab, so features of one mode never affect another. */}
+          {evaluation.mode === 'multi-turn' ? (
+            <MultiTurnLab currentUser={currentUser} evaluationName={evaluation.name} onLeaveEvaluation={leaveEvaluation} />
+          ) : evaluation.mode === 'agentic' ? (
+            <ResearchLab currentUser={currentUser} evaluationName={evaluation.name} onLeaveEvaluation={leaveEvaluation} />
+          ) : (
+            <ReasoningLab currentUser={currentUser} evaluationName={evaluation.name} onLeaveEvaluation={leaveEvaluation} />
+          )}
+        </main>
+      ) : (
+        <EvaluationLobby currentUser={currentUser} onEnter={(name, mode) => setEvaluation({ name, mode })} />
+      )}
 
-      <footer className="text-center py-6 border-t border-border text-xs text-muted-foreground">
-        LLM Evaluation Labs &copy; {new Date().getFullYear()}. For research and educational purposes.
+      <footer className="py-6 border-t border-border text-xs text-muted-foreground">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row gap-1 sm:justify-between">
+          <span>{APP_TITLE} &copy; {new Date().getFullYear()}</span>
+          <span>For research and educational purposes.</span>
+        </div>
       </footer>
 
       {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
       {showAccessRequests && <AccessRequestsPanel onClose={() => setShowAccessRequests(false)} />}
+      {showPartnerOrgs && <PartnerOrgsPanel onClose={() => setShowPartnerOrgs(false)} />}
     </div>
   );
 };

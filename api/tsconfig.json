@@ -1,0 +1,12 @@
+{
+  "//": "Compiler settings for Vercel serverless functions only. The root tsconfig.json targets the Vite front end (ESNext modules, noEmit), which made Vercel emit ES-module syntax into a CommonJS package and crash the function at startup (500 FUNCTION_INVOCATION_FAILED).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false
+  },
+  "include": ["./**/*.ts"]
+}

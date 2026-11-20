@@ -148,3 +148,8 @@ details[open] > summary .details-summary-marker {
   background: var(--color-muted);
   border-radius: 9999px;
 }
+
+/* Arabic-script languages: Inter has no Arabic glyphs, so give them a matching typeface. */
+[lang="fa"], [lang="ar"], [lang="ps"], [lang="ur"], [lang="sd"], [lang="ku"], [lang="ug"] {
+  font-family: 'Vazirmatn', 'Inter', system-ui, sans-serif;
+}
