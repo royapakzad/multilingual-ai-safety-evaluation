@@ -226,9 +226,9 @@ Built by [Roya Pakzad](mailto:rpakzad@taraazresearch.org) ([Taraaz](https://tara
 Released under the [MIT License](LICENSE).
 
 <p align="center">
-  <a href="https://taraazresearch.org"><img src="docs/images/logos/taraaz.png" width="140" alt="Taraaz"></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="https://foundation.mozilla.org"><img src="docs/images/logos/mozilla-foundation.png" width="220" alt="Mozilla Foundation"></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="https://otari.ai"><img src="docs/images/logos/otari.png" width="200" alt="Otari by Mozilla.ai"></a>
+  <a href="https://taraazresearch.org"><img src="docs/images/logos/taraaz.png" height="46" alt="Taraaz"></a>
+  &emsp;&emsp;&emsp;
+  <a href="https://foundation.mozilla.org"><img src="docs/images/logos/mozilla-foundation.png" height="36" alt="Mozilla Foundation"></a>
+  &emsp;&emsp;&emsp;
+  <a href="https://otari.ai"><img src="docs/images/logos/otari.png" height="40" alt="Otari by Mozilla.ai"></a>
 </p>
