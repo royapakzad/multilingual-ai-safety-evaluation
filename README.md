@@ -66,7 +66,7 @@ You write a scenario once. The lab translates it, runs both versions on the mode
 
 Every model role is your choice: the model under test, the translator, and the judge. Open-weight models (DeepSeek, Qwen, GLM, Mistral, gpt-oss, Apertus) and proprietary ones (OpenAI, Anthropic, Gemini) sit in the same picker. The dashboard warns you when a model is grading its own answers.
 
-## Your criteria
+## Your criteria, not ours
 
 What counts as a good answer depends on context. A health ministry, a legal aid group and a content moderation team will care about different things, so the criteria are yours to build: remove what doesn't apply, and add your own criteria with your own answer scales. Each evaluation keeps its own set.
 
@@ -206,7 +206,7 @@ firestore.rules
 
 Organisations that tried early versions of the lab kept asking three things: *Can we use our own models for every role? What will an evaluation cost? Is it safe for our team to use?* Routing every call through Otari answered all three: one connection for open and proprietary models, per-call cost tracking, and keys that stay on the server with a separate budget for each partner.
 
-Built for the Mozilla.ai Otari hackathon. What worked, what didn't, and feature requests are in [HACKATHON_WRITEUP.md](HACKATHON_WRITEUP.md).
+Built for the Mozilla.ai Otari hackathon. See the [hackathon slides](https://drive.google.com/file/d/1aRPcjoAu1wnaRVPGMeTTuD0I-okkWvjv/view?usp=drive_link); what worked, what didn't, and feature requests are in [HACKATHON_WRITEUP.md](HACKATHON_WRITEUP.md).
 </details>
 
 ---
@@ -223,3 +223,11 @@ Built for the Mozilla.ai Otari hackathon. What worked, what didn't, and feature 
 Built by [Roya Pakzad](mailto:rpakzad@taraazresearch.org) ([Taraaz](https://taraazresearch.org)) through the Mozilla Foundation Trustworthy AI Senior Fellowship. Thanks to every evaluator and civil-society partner who tested the lab, including Respond Crisis Translation.
 
 Released under the [MIT License](LICENSE).
+
+<p align="center">
+  <a href="https://taraazresearch.org"><img src="docs/images/logos/taraaz.png" width="140" alt="Taraaz"></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://foundation.mozilla.org"><img src="docs/images/logos/mozilla-foundation.png" width="220" alt="Mozilla Foundation"></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://otari.ai"><img src="docs/images/logos/otari.png" width="200" alt="Otari by Mozilla.ai"></a>
+</p>
