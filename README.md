@@ -19,7 +19,7 @@ This lab lets you find out before you deploy.
 
 | | |
 |---|---|
-| **Adopted by** | [Current AI](https://www.currentai.org](https://www.aipotluck.org/updates/meet-ai-potlucks-6-new-partners))'s Alpha LLM |
+| **Adopted by** | [Current AI](https://www.currentai.org](https://www.aipotluck.org/updates/meet-ai-potlucks-6-new-partners)'s Alpha LLM |
 | **Presented at** | ACM Conference on Fairness, Accountability, and Transparency (FAccT) |
 | | UN Human Rights Office (OHCHR) RightsX Summit 2026 |
 | | Stanford University's Trust and Safety Research Conference |
