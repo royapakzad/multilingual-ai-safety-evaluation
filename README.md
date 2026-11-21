@@ -19,7 +19,7 @@ This lab lets you find out before you deploy.
 
 | | |
 |---|---|
-| **Adopted by** | [Current AI]([https://www.currentai.org](https://www.aipotluck.org/updates/meet-ai-potlucks-6-new-partners))'s Alpha LLM |
+| **Adopted by** | [Current AI](https://www.currentai.org](https://www.aipotluck.org/updates/meet-ai-potlucks-6-new-partners))'s Alpha LLM |
 | **Presented at** | ACM Conference on Fairness, Accountability, and Transparency (FAccT) |
 | | UN Human Rights Office (OHCHR) RightsX Summit 2026 |
 | | Stanford University's Trust and Safety Research Conference |
@@ -228,7 +228,7 @@ Released under the [MIT License](LICENSE).
 <p align="center">
   <a href="https://taraazresearch.org"><img src="docs/images/logos/taraaz.png" height="42" alt="Taraaz"></a>
   &emsp;&emsp;&emsp;
-  <a href="https://foundation.mozilla.org"><img src="docs/images/logos/mozilla-foundation.png" height="76" alt="Mozilla Foundation"></a>
+  <a href="https://foundation.mozilla.org"><img src="docs/images/logos/mozilla-foundation.png" height="46" alt="Mozilla Foundation"></a>
   &emsp;&emsp;&emsp;
   <a href="https://otari.ai"><img src="docs/images/logos/otari.png" height="40" alt="Otari by Mozilla.ai"></a>
 </p>
